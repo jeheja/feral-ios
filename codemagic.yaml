@@ -55,6 +55,10 @@ workflows:
           # Install Mint for Swift tools
           brew install mint
           
+          # Install required Swift tools
+          mint install yonaskolb/XcodeGen@2.42.0
+          mint install realm/SwiftLint@0.57.1
+          
           # Install Ruby dependencies
           bundle install
           
@@ -157,6 +161,10 @@ workflows:
         script: |
           # Install Mint for Swift tools
           brew install mint
+          
+          # Install required Swift tools
+          mint install yonaskolb/XcodeGen@2.42.0
+          mint install realm/SwiftLint@0.57.1
           
           # Install Ruby dependencies
           bundle install
