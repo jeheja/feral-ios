@@ -231,60 +231,63 @@ workflows:
       #   submit_to_testflight: true
       #   submit_to_app_store: false
       
-  ios-testflight:
-    name: Build and Deploy to TestFlight
-    instance_type: mac_mini_m2
-    max_build_duration: 60
-    environment:
-      groups:
-        - app_store_credentials  # Configure in Codemagic UI
-        - ios_code_signing      # Configure in Codemagic UI
-      vars:
-        BUNDLE_ID: "io.feral.app"  # Replace with your actual bundle ID
-        APP_NAME: "Feral"
-        APP_DISPLAY_NAME: "Feral"
-        XCODE_PROJECT: "ElementX.xcodeproj"  # Project name stays the same
-        XCODE_SCHEME: "ElementX"  # Scheme name stays the same
-      xcode: 16.2
-    triggering:
-      events:
-        - tag
-      tag_patterns:
-        - pattern: 'v*'
-          include: true
-    scripts:
-      - name: Install dependencies
-        script: |
-          bundle install
-          
-      - name: Generate Xcode project
-        script: |
-          mint run xcodegen generate
-          
-      - name: Set version from tag
-        script: |
-          # Extract version from git tag
-          VERSION=$(echo $CM_TAG | sed 's/v//')
-          echo "Setting version to $VERSION"
-          
-          # Update version in project
-          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "${XCODE_PROJECT}/Info.plist"
-          
-      - name: Build and archive
-        script: |
-          bundle exec fastlane build_release
-          
-    artifacts:
-      - $CM_BUILD_DIR/build/*.ipa
-      - $CM_BUILD_DIR/build/*.dSYM.zip
-      
-    publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
-        beta_groups:
-          - "Internal Testers"
-        submit_to_app_store: false
-      email:
-        recipients:
-          - releases@example.com
+  # TestFlight workflow - Uncomment and configure when you have an Apple Developer account
+  # ios-testflight:
+  #   name: Build and Deploy to TestFlight
+  #   instance_type: mac_mini_m2
+  #   max_build_duration: 60
+  #   integrations:
+  #     app_store_connect: YOUR_API_KEY_NAME  # Add your App Store Connect API key name here
+  #   environment:
+  #     groups:
+  #       - app_store_credentials  # Configure in Codemagic UI
+  #       - ios_code_signing      # Configure in Codemagic UI
+  #     vars:
+  #       BUNDLE_ID: "io.feral.app"
+  #       APP_NAME: "Feral"
+  #       APP_DISPLAY_NAME: "Feral"
+  #       XCODE_PROJECT: "ElementX.xcodeproj"
+  #       XCODE_SCHEME: "ElementX"
+  #     xcode: 16.2
+  #   triggering:
+  #     events:
+  #       - tag
+  #     tag_patterns:
+  #       - pattern: 'v*'
+  #         include: true
+  #   scripts:
+  #     - name: Install dependencies
+  #       script: |
+  #         bundle install
+  #         
+  #     - name: Generate Xcode project
+  #       script: |
+  #         mint run xcodegen generate
+  #         
+  #     - name: Set version from tag
+  #       script: |
+  #         # Extract version from git tag
+  #         VERSION=$(echo $CM_TAG | sed 's/v//')
+  #         echo "Setting version to $VERSION"
+  #         
+  #         # Update version in project
+  #         /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "${XCODE_PROJECT}/Info.plist"
+  #         
+  #     - name: Build and archive
+  #       script: |
+  #         bundle exec fastlane build_release
+  #         
+  #   artifacts:
+  #     - $CM_BUILD_DIR/build/*.ipa
+  #     - $CM_BUILD_DIR/build/*.dSYM.zip
+  #     
+  #   publishing:
+  #     app_store_connect:
+  #       auth: integration
+  #       submit_to_testflight: true
+  #       beta_groups:
+  #         - "Internal Testers"
+  #       submit_to_app_store: false
+  #     email:
+  #       recipients:
+  #         - releases@example.com
