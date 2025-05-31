@@ -157,35 +157,36 @@ final class AppSettings {
     ///
     /// Account provider is the friendly term for the server name. It should not contain an `https` prefix and should
     /// match the last part of the user ID. For example `example.com` and not `https://matrix.example.com`.
-    private(set) var accountProviders = ["matrix.org"]
+    private(set) var accountProviders = getFeralAccountProviders()
     /// Whether or not the user is allowed to manually enter their own account provider or must select from one of `defaultAccountProviders`.
+    /// Set to true to allow selection between different Feral servers.
     private(set) var allowOtherAccountProviders = true
     
     /// The task identifier used for background app refresh. Also used in main target's the Info.plist
     let backgroundAppRefreshTaskIdentifier = "io.element.elementx.background.refresh"
 
     /// A URL where users can go read more about the app.
-    private(set) var websiteURL: URL = "https://element.io"
+    private(set) var websiteURL: URL = "https://feralisme.fr"
     /// A URL that contains the app's logo that may be used when showing content in a web view.
-    private(set) var logoURL: URL = "https://element.io/mobile-icon.png"
+    private(set) var logoURL: URL = "https://feralisme.fr/mobile-icon.png"
     /// A URL that contains that app's copyright notice.
-    private(set) var copyrightURL: URL = "https://element.io/copyright"
+    private(set) var copyrightURL: URL = "https://feralisme.fr/copyright"
     /// A URL that contains the app's Terms of use.
-    private(set) var acceptableUseURL: URL = "https://element.io/acceptable-use-policy-terms"
+    private(set) var acceptableUseURL: URL = "https://feralisme.fr/terms"
     /// A URL that contains the app's Privacy Policy.
-    private(set) var privacyURL: URL = "https://element.io/privacy"
+    private(set) var privacyURL: URL = "https://feralisme.fr/privacy"
     /// A URL where users can go read more about encryption in general.
-    private(set) var encryptionURL: URL = "https://element.io/help#encryption"
+    private(set) var encryptionURL: URL = "https://feralisme.fr/help#encryption"
     /// A URL where users can go read more about device verification..
-    private(set) var deviceVerificationURL: URL = "https://element.io/help#encryption-device-verification"
+    private(set) var deviceVerificationURL: URL = "https://feralisme.fr/help#device-verification"
     /// A URL where users can go read more about the chat backup.
-    private(set) var chatBackupDetailsURL: URL = "https://element.io/help#encryption5"
+    private(set) var chatBackupDetailsURL: URL = "https://feralisme.fr/help#chat-backup"
     /// A URL where users can go read more about identity pinning violations
-    private(set) var identityPinningViolationDetailsURL: URL = "https://element.io/help#encryption18"
-    /// Any domains that Element web may be hosted on - used for handling links.
-    private(set) var elementWebHosts = ["app.element.io", "staging.element.io", "develop.element.io"]
+    private(set) var identityPinningViolationDetailsURL: URL = "https://feralisme.fr/help#identity-pinning"
+    /// Any domains that Feral web may be hosted on - used for handling links.
+    private(set) var elementWebHosts = ["app.feralisme.fr", "web.feralisme.fr", "feralisme.fr"]
     /// The domain that account provisioning links will be hosted on - used for handling the links.
-    private(set) var accountProvisioningHost = "mobile.element.io"
+    private(set) var accountProvisioningHost = "mobile.feralisme.fr"
     
     @UserPreference(key: UserDefaultsKeys.appAppearance, defaultValue: .system, storageType: .userDefaults(store))
     var appAppearance: AppAppearance
@@ -206,8 +207,8 @@ final class AppSettings {
     
     /// Any pre-defined static client registrations for OIDC issuers.
     let oidcStaticRegistrations: [URL: String] = ["https://id.thirdroom.io/realms/thirdroom": "elementx"]
-    /// The redirect URL used for OIDC. This no longer uses universal links so we don't need the bundle ID to avoid conflicts between Element X, Nightly and PR builds.
-    private(set) var oidcRedirectURL: URL = "https://element.io/oidc/login"
+    /// The redirect URL used for OIDC. This no longer uses universal links so we don't need the bundle ID to avoid conflicts between Feral, Nightly and PR builds.
+    private(set) var oidcRedirectURL: URL = "https://feralisme.fr/oidc/login"
     
     private(set) lazy var oidcConfiguration = OIDCConfigurationProxy(clientName: InfoPlistReader.main.bundleDisplayName,
                                                                      redirectURI: oidcRedirectURL,
@@ -232,7 +233,7 @@ final class AppSettings {
         #endif
     }
     
-    private(set) var pushGatewayBaseURL: URL = "https://matrix.org"
+    private(set) var pushGatewayBaseURL: URL = "https://feralisme.fr"
     var pushGatewayNotifyEndpoint: URL { pushGatewayBaseURL.appending(path: "_matrix/push/v1/notify") }
     
     @UserPreference(key: UserDefaultsKeys.enableNotifications, defaultValue: true, storageType: .userDefaults(store))
@@ -260,7 +261,7 @@ final class AppSettings {
     /// The configuration to use for analytics. Set to `nil` to disable analytics.
     let analyticsConfiguration: AnalyticsConfiguration? = AppSettings.makeAnalyticsConfiguration()
     /// The URL to open with more information about analytics terms. When this is `nil` the "Learn more" link will be hidden.
-    private(set) var analyticsTermsURL: URL? = "https://element.io/cookie-policy"
+    private(set) var analyticsTermsURL: URL? = "https://feralisme.fr/cookie-policy"
     /// Whether or not there the app is able ask for user consent to enable analytics or sentry reporting.
     var canPromptForAnalytics: Bool { analyticsConfiguration != nil || bugReportSentryURL != nil }
     
@@ -366,6 +367,66 @@ final class AppSettings {
     
     @UserPreference(key: UserDefaultsKeys.hideQuietNotificationAlerts, defaultValue: false, storageType: .userDefaults(store))
     var hideQuietNotificationAlerts
+    
+    // MARK: - Feral Server Configuration
+    
+    /// Returns the list of Feral account providers with locale-based ordering
+    private static func getFeralAccountProviders() -> [String] {
+        // Map of locale identifiers to their preferred servers
+        let localeToServer = [
+            "fr": "feralisme.fr",     // French language
+            "FR": "feralisme.fr",     // France country
+            "en": "feralism.net",     // English language (international)
+            "US": "feralism.net",     // United States
+            "GB": "feralism.net",     // United Kingdom
+            // Add more mappings as servers become available:
+            // "de": "feralism.de",   // German
+            // "DE": "feralism.de",   // Germany
+            // "es": "feralism.es",   // Spanish
+            // "ES": "feralism.es",   // Spain
+            // "eu": "feralism.eu",   // European Union countries
+        ]
+        
+        // Get the user's current locale
+        let locale = Locale.current
+        var preferredServer: String?
+        
+        // First try country code
+        if let countryCode = locale.region?.identifier {
+            preferredServer = localeToServer[countryCode]
+        }
+        
+        // If no country match, try language code
+        if preferredServer == nil, let languageCode = locale.language.languageCode?.identifier {
+            preferredServer = localeToServer[languageCode]
+        }
+        
+        // Default to international server if no match
+        if preferredServer == nil {
+            preferredServer = "feralism.net"
+        }
+        
+        // List of all available Feral servers
+        let allServers = [
+            "feralisme.fr",    // France
+            "feralism.net",    // International
+            // Add more servers as they become available:
+            // "feralism.eu",  // Europe
+            // "feralism.de",  // Germany
+            // "feralism.es",  // Spain
+        ]
+        
+        // Return the list with the preferred server first
+        var orderedServers = [String]()
+        if let preferred = preferredServer {
+            orderedServers.append(preferred)
+            orderedServers.append(contentsOf: allServers.filter { $0 != preferred })
+        } else {
+            orderedServers = allServers
+        }
+        
+        return orderedServers
+    }
 }
 
 extension AppSettings: CommonSettingsProtocol { }

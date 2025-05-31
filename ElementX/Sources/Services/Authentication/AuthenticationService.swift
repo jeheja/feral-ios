@@ -43,6 +43,12 @@ class AuthenticationService: AuthenticationServiceProtocol {
     // MARK: - Public
     
     func configure(for homeserverAddress: String, flow: AuthenticationFlow) async -> Result<Void, AuthenticationServiceError> {
+        // Validate that the server is a Feral server
+        guard isAllowedFeralServer(homeserverAddress) else {
+            MXLog.error("Attempted to connect to non-Feral server: \(homeserverAddress)")
+            return .failure(.invalidServer)
+        }
+        
         do {
             var homeserver = LoginHomeserver(address: homeserverAddress, loginMode: .unknown)
             
@@ -177,6 +183,29 @@ class AuthenticationService: AuthenticationServiceProtocol {
         case .failure:
             return .failure(.failedLoggingIn)
         }
+    }
+    
+    /// Validates that the given homeserver address is an allowed Feral server
+    private func isAllowedFeralServer(_ homeserverAddress: String) -> Bool {
+        // List of allowed Feral servers (without https:// prefix)
+        let allowedServers = [
+            "feralisme.fr",
+            "feralism.net",
+            "feralism.eu",
+            "feral.chat",
+            // Add more servers as they become available:
+            // "feralism.de",
+            // "feralism.es",
+            // "feral.uk",
+        ]
+        
+        // Normalize the address by removing protocol if present
+        let normalizedAddress = homeserverAddress
+            .replacingOccurrences(of: "https://", with: "")
+            .replacingOccurrences(of: "http://", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        return allowedServers.contains(normalizedAddress)
     }
 }
 
