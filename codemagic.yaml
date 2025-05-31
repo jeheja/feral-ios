@@ -1,0 +1,290 @@
+# Codemagic CI/CD configuration for Feral iOS app
+# 
+# IMPORTANT: This configuration is set up for development builds without an Apple Developer account
+# 
+# For development builds (no Apple Developer account):
+# 1. Create a Codemagic account and add this repository
+# 2. The build will create an unsigned IPA or use free provisioning
+# 3. You can test on simulator or your own device with free Apple ID
+# 
+# When you get an Apple Developer account ($99/year), you'll need to:
+# 1. Update the DEVELOPMENT_TEAM with your Team ID
+# 2. Configure code signing in Codemagic UI
+# 3. Enable the app_store_credentials environment group
+
+workflows:
+  # Development workflow - No Apple Developer account required
+  ios-dev-unsigned:
+    name: Build Feral iOS (Unsigned)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      vars:
+        BUNDLE_ID: "com.example.feral"  # Use reverse domain format
+        APP_NAME: "Feral"
+        APP_DISPLAY_NAME: "Feral"
+        XCODE_PROJECT: "ElementX.xcodeproj"
+        XCODE_SCHEME: "ElementX"
+      xcode: 16.2
+      cocoapods: default
+      node: latest
+    cache:
+      cache_paths:
+        - $CM_BUILD_DIR/SourcePackages
+        - $HOME/Library/Developer/Xcode/DerivedData/**/SourcePackages
+        - $HOME/.cache/swift-package-manager
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: '*'
+          include: true
+          source: true
+    scripts:
+      - name: Install dependencies
+        script: |
+          bundle install
+          
+      - name: Generate Xcode project
+        script: |
+          mint run xcodegen generate
+          
+      - name: Build for simulator
+        script: |
+          echo "Building for iOS Simulator (no code signing required)..."
+          xcodebuild build \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,name=iPhone 15" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+            
+      - name: Create unsigned IPA (optional)
+        script: |
+          echo "Creating unsigned IPA for development..."
+          xcodebuild archive \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -archivePath "$CM_BUILD_DIR/app.xcarchive" \
+            -configuration Debug \
+            -sdk iphoneos \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            -allowProvisioningUpdates
+        ignore_failure: true
+    
+    artifacts:
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/Products/**/*.app
+      - $CM_BUILD_DIR/app.xcarchive
+      
+  # Future workflow - When you have an Apple Developer account
+  ios-workflow:
+    name: Build Feral iOS App (Signed)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      groups:
+        # Configure these groups in Codemagic UI when you have an Apple Developer account
+        # - app_store_credentials  # For App Store Connect API authentication
+        # - ios_code_signing      # For certificates and provisioning profiles
+      vars:
+        BUNDLE_ID: "io.feral.app"  # Your official bundle ID
+        APP_NAME: "Feral"
+        APP_DISPLAY_NAME: "Feral"
+        XCODE_PROJECT: "ElementX.xcodeproj"
+        XCODE_SCHEME: "ElementX"
+      xcode: 16.2  # Match the version from your CI
+      cocoapods: default
+      node: latest
+    cache:
+      cache_paths:
+        - $CM_BUILD_DIR/SourcePackages
+        - $HOME/Library/Developer/Xcode/DerivedData/**/SourcePackages
+        - $HOME/.cache/swift-package-manager
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: 'develop'
+          include: true
+          source: true
+        - pattern: 'main'
+          include: true
+          source: true
+        - pattern: 'feature/*'
+          include: true
+          source: true
+      cancel_previous_builds: true
+    scripts:
+      - name: Set up SSH key for private dependencies
+        script: |
+          # Skip if no SSH key is configured
+          if [ -z "$SSH_KEY_GITHUB" ]; then
+            echo "No SSH key configured, skipping..."
+          else
+            # Set up SSH key for accessing private dependencies
+            mkdir -p ~/.ssh
+            echo "$SSH_KEY_GITHUB" | base64 --decode > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+            ssh-keyscan github.com >> ~/.ssh/known_hosts
+          fi
+      
+      - name: Install Ruby dependencies
+        script: |
+          bundle install
+      
+      - name: Generate Xcode project
+        script: |
+          echo "Generating Xcode project with XcodeGen..."
+          mint run xcodegen generate
+      
+      - name: Resolve Swift Package dependencies
+        script: |
+          xcodebuild -resolvePackageDependencies \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -clonedSourcePackagesDirPath SourcePackages
+      
+      - name: Run SwiftLint
+        script: |
+          echo "Running SwiftLint..."
+          mint run swiftlint
+        ignore_failure: true
+      
+      - name: Run unit tests
+        script: |
+          echo "Running unit tests..."
+          bundle exec fastlane unit_tests
+        ignore_failure: true
+      
+      - name: Set up code signing
+        script: |
+          # For automatic code signing with App Store Connect API
+          if [ -n "$APP_STORE_CONNECT_PRIVATE_KEY" ]; then
+            echo "Setting up automatic code signing..."
+            # Codemagic will handle this automatically if credentials are configured
+          else
+            echo "Warning: No code signing credentials configured"
+            echo "The build will use the development team from the project"
+          fi
+      
+      - name: Update app configuration for Feral
+        script: |
+          # Update the app display name and bundle identifier if needed
+          # This is optional if you've already modified the project files
+          echo "Current app configuration:"
+          echo "Bundle ID: $BUNDLE_ID"
+          echo "App Name: $APP_NAME"
+          
+      - name: Increment build number
+        script: |
+          # Get the current build number and increment it
+          BUILD_NUMBER=$(($(xcodebuild -showBuildSettings -project "$XCODE_PROJECT" -scheme "$XCODE_SCHEME" | grep CURRENT_PROJECT_VERSION | head -1 | awk '{print $3}') + 1))
+          echo "Setting build number to $BUILD_NUMBER"
+          
+          # Update build number in project
+          agvtool new-version -all $BUILD_NUMBER
+      
+      - name: Build iOS app
+        script: |
+          echo "Building iOS app..."
+          xcodebuild archive \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -archivePath "$CM_BUILD_DIR/app.xcarchive" \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -allowProvisioningUpdates \
+            DEVELOPMENT_TEAM=""  # Leave empty for now, add your Team ID when you have an Apple Developer account \
+            CODE_SIGN_STYLE="Automatic"
+      
+      - name: Export IPA
+        script: |
+          echo "Exporting IPA..."
+          xcodebuild -exportArchive \
+            -archivePath "$CM_BUILD_DIR/app.xcarchive" \
+            -exportPath "$CM_BUILD_DIR/ipa" \
+            -exportOptionsPlist "$CM_BUILD_DIR/export_options.plist" \
+            -allowProvisioningUpdates
+        # Note: You'll need to create export_options.plist or use Codemagic's automatic export
+    
+    artifacts:
+      - $CM_BUILD_DIR/ipa/*.ipa
+      - $CM_BUILD_DIR/app.xcarchive
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/Products/**/ElementX.app.dSYM.zip
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Logs/Test/*.xcresult
+    
+    publishing:
+      email:
+        recipients:
+          - team@example.com
+        notify:
+          success: true
+          failure: true
+      # Uncomment and configure for App Store Connect publishing
+      # app_store_connect:
+      #   auth: integration
+      #   submit_to_testflight: true
+      #   submit_to_app_store: false
+      
+  ios-testflight:
+    name: Build and Deploy to TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      groups:
+        - app_store_credentials  # Configure in Codemagic UI
+        - ios_code_signing      # Configure in Codemagic UI
+      vars:
+        BUNDLE_ID: "io.feral.app"  # Replace with your actual bundle ID
+        APP_NAME: "Feral"
+        APP_DISPLAY_NAME: "Feral"
+        XCODE_PROJECT: "ElementX.xcodeproj"  # Project name stays the same
+        XCODE_SCHEME: "ElementX"  # Scheme name stays the same
+      xcode: 16.2
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'v*'
+          include: true
+    scripts:
+      - name: Install dependencies
+        script: |
+          bundle install
+          
+      - name: Generate Xcode project
+        script: |
+          mint run xcodegen generate
+          
+      - name: Set version from tag
+        script: |
+          # Extract version from git tag
+          VERSION=$(echo $CM_TAG | sed 's/v//')
+          echo "Setting version to $VERSION"
+          
+          # Update version in project
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "${XCODE_PROJECT}/Info.plist"
+          
+      - name: Build and archive
+        script: |
+          bundle exec fastlane build_release
+          
+    artifacts:
+      - $CM_BUILD_DIR/build/*.ipa
+      - $CM_BUILD_DIR/build/*.dSYM.zip
+      
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - "Internal Testers"
+        submit_to_app_store: false
+      email:
+        recipients:
+          - releases@example.com
