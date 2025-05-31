@@ -42,8 +42,20 @@ workflows:
           include: true
           source: true
     scripts:
+      - name: Skip Enterprise submodule
+        script: |
+          # Remove the Enterprise submodule as it's private and not needed
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git submodule deinit -f Enterprise || true
+          git rm -f Enterprise || true
+          rm -rf .git/modules/Enterprise || true
+          
       - name: Install dependencies
         script: |
+          # Install Mint for Swift tools
+          brew install mint
+          
+          # Install Ruby dependencies
           bundle install
           
       - name: Generate Xcode project
@@ -120,6 +132,14 @@ workflows:
           source: true
       cancel_previous_builds: true
     scripts:
+      - name: Skip Enterprise submodule
+        script: |
+          # Remove the Enterprise submodule as it's private and not needed
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git submodule deinit -f Enterprise || true
+          git rm -f Enterprise || true
+          rm -rf .git/modules/Enterprise || true
+          
       - name: Set up SSH key for private dependencies
         script: |
           # Skip if no SSH key is configured
@@ -133,8 +153,12 @@ workflows:
             ssh-keyscan github.com >> ~/.ssh/known_hosts
           fi
       
-      - name: Install Ruby dependencies
+      - name: Install dependencies
         script: |
+          # Install Mint for Swift tools
+          brew install mint
+          
+          # Install Ruby dependencies
           bundle install
       
       - name: Generate Xcode project
