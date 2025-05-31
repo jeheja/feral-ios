@@ -92,6 +92,7 @@ workflows:
       - name: Build for simulator
         script: |
           echo "Building for iOS Simulator (no code signing required)..."
+          # Disable code signing and entitlements for simulator build
           xcodebuild build \
             -project "$XCODE_PROJECT" \
             -scheme "$XCODE_SCHEME" \
@@ -99,7 +100,10 @@ workflows:
             -configuration Debug \
             -destination "platform=iOS Simulator,name=iPhone 16" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_ENTITLEMENTS="" \
+            ENABLE_BITCODE=NO
             
       - name: Create unsigned IPA (optional)
         script: |

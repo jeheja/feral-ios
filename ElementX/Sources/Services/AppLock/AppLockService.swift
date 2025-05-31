@@ -24,8 +24,14 @@ class AppLockService: AppLockServiceProtocol {
             return try keychainController.containsPINCode()
         } catch {
             MXLog.error("Keychain access error: \(error)")
+            #if DEBUG || targetEnvironment(simulator)
+            // For development builds and simulator, don't lock on keychain errors
+            MXLog.warning("Disabling app lock for development/simulator build")
+            return false
+            #else
             MXLog.error("Locking the app.")
             return true
+            #endif
         }
     }
     
