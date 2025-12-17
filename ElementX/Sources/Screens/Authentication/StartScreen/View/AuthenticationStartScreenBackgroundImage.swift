@@ -11,7 +11,9 @@ import SwiftUI
 /// The background gradient shown on the launch, splash and onboarding screens.
 struct AuthenticationStartScreenBackgroundImage: View {
     var body: some View {
-        Color.black
+        Image(asset: Asset.Images.launchBackground)
+            .resizable()
+            .scaledToFill()
             .ignoresSafeArea()
             .accessibilityHidden(true)
     }

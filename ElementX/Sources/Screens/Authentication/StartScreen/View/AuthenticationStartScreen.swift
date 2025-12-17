@@ -70,8 +70,7 @@ struct AuthenticationStartScreen: View {
             
             VStack(spacing: 8) {
                 Text("Feral")
-                    .font(.system(size: 42, weight: .black, design: .serif))
-                    .italic()
+                    .font(.custom("Papyrus", size: 48))
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                 Text("for feralists")
