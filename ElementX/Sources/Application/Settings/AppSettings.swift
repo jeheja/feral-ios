@@ -406,11 +406,9 @@ final class AppSettings {
     
     @UserPreference(key: UserDefaultsKeys.linkNewDeviceEnabled, defaultValue: false, storageType: .userDefaults(store))
     var linkNewDeviceEnabled
-    
 
-    /// Configuration to enable only signed device isolation mode for  crypto. In this mode only devices signed by their owner will be considered in e2ee rooms.
-    @UserPreference(key: UserDefaultsKeys.enableOnlySignedDeviceIsolationMode, defaultValue: false, storageType: .userDefaults(store))
-    var enableOnlySignedDeviceIsolationMode
+    @UserPreference(key: UserDefaultsKeys.developerOptionsEnabled, defaultValue: isDevelopmentBuild, storageType: .userDefaults(store))
+    var developerOptionsEnabled
 
     // MARK: - Feral Server Configuration
     
@@ -471,10 +469,6 @@ final class AppSettings {
         
         return orderedServers
     }
-
-    @UserPreference(key: UserDefaultsKeys.developerOptionsEnabled, defaultValue: isDevelopmentBuild, storageType: .userDefaults(store))
-    var developerOptionsEnabled
-
 }
 
 extension AppSettings: CommonSettingsProtocol { }
