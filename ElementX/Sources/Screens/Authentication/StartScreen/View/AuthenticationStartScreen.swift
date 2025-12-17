@@ -68,20 +68,19 @@ struct AuthenticationStartScreen: View {
             
             Spacer()
             
-            if !context.viewState.hideBrandChrome {
-                VStack(spacing: 8) {
-                    Text(L10n.screenOnboardingWelcomeTitle)
-                        .font(.compound.headingLGBold)
-                        .foregroundColor(.compound.textPrimary)
-                        .multilineTextAlignment(.center)
-                    Text(L10n.screenOnboardingWelcomeMessage(InfoPlistReader.main.productionAppName))
-                        .font(.compound.bodyLG)
-                        .foregroundColor(.compound.textSecondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding()
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(spacing: 8) {
+                Text("Feral")
+                    .font(.system(size: 42, weight: .black, design: .serif))
+                    .italic()
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                Text("for feralists")
+                    .font(.compound.bodyLG)
+                    .foregroundColor(.white.opacity(0.7))
+                    .multilineTextAlignment(.center)
             }
+            .padding()
+            .fixedSize(horizontal: false, vertical: true)
             
             Spacer()
         }

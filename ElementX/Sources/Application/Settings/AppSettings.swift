@@ -180,7 +180,7 @@ final class AppSettings {
     /// Set to true to allow selection between different Feral servers.
     private(set) var allowOtherAccountProviders = true
     /// Whether the components surrounding the app brand/logo should be hidden or not
-    private(set) var hideBrandChrome = true
+    private(set) var hideBrandChrome = false
     
     /// The task identifier used for background app refresh. Also used in main target's the Info.plist
     let backgroundAppRefreshTaskIdentifier = "io.element.elementx.background.refresh"

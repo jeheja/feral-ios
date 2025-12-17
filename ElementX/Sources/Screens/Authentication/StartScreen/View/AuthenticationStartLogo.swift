@@ -10,17 +10,16 @@ import SwiftUI
 
 /// The app's logo styled to fit on various launch pages.
 struct AuthenticationStartLogo: View {
-    @Environment(\.colorScheme) private var colorScheme
-    
     /// Set to `true` when using on top of `Asset.Images.launchBackground`
     let hideBrandChrome: Bool
-    
+
     /// Extra padding needed to avoid cropping the shadows.
     private let extra: CGFloat = 64
     /// The shape that the logo is composed on top of.
     private let outerShape = RoundedRectangle(cornerRadius: 44)
     private let outerShapeShadowColor = Color(red: 0.11, green: 0.11, blue: 0.13)
-    private var isLight: Bool { colorScheme == .light }
+    /// Always use dark mode styling for Feral branding
+    private var isLight: Bool { false }
     
     var body: some View {
         if hideBrandChrome {
@@ -38,20 +37,6 @@ struct AuthenticationStartLogo: View {
     
     private var brandLogo: some View {
         Image(asset: Asset.Images.appLogo)
-            .background {
-                Circle()
-                    .inset(by: 1)
-                    .shadow(color: .black.opacity(!isLight ? 0.3 : 0.4),
-                            radius: 12.57143,
-                            y: 6.28571)
-                
-                Circle()
-                    .inset(by: 1)
-                    .shadow(color: .black.opacity(0.5),
-                            radius: 12.57143,
-                            y: 6.28571)
-                    .blendMode(.overlay)
-            }
             .padding(24)
             .background {
                 Color.white
