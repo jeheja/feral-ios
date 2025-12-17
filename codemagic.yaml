@@ -28,11 +28,12 @@ workflows:
       xcode: 16.4
       cocoapods: default
       node: latest
-    cache:
-      cache_paths:
-        - $CM_BUILD_DIR/SourcePackages
-        - $HOME/Library/Developer/Xcode/DerivedData/**/SourcePackages
-        - $HOME/.cache/swift-package-manager
+    # Cache disabled temporarily to ensure fresh builds
+    # cache:
+    #   cache_paths:
+    #     - $CM_BUILD_DIR/SourcePackages
+    #     - $HOME/Library/Developer/Xcode/DerivedData/**/SourcePackages
+    #     - $HOME/.cache/swift-package-manager
     triggering:
       events:
         - push
@@ -89,6 +90,11 @@ workflows:
             -scheme "$XCODE_SCHEME" \
             -clonedSourcePackagesDirPath SourcePackages
           
+      - name: Clean derived data
+        script: |
+          echo "Cleaning derived data to ensure fresh build..."
+          rm -rf ~/Library/Developer/Xcode/DerivedData/*
+
       - name: Build for simulator
         script: |
           echo "Building for iOS Simulator (no code signing required)..."
@@ -103,7 +109,8 @@ workflows:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_ENTITLEMENTS="" \
-            ENABLE_BITCODE=NO
+            ENABLE_BITCODE=NO \
+            IPHONEOS_DEPLOYMENT_TARGET=18.0
             
       - name: Create unsigned IPA (optional)
         script: |
@@ -144,11 +151,12 @@ workflows:
       xcode: 16.4  # Match the version from your CI
       cocoapods: default
       node: latest
-    cache:
-      cache_paths:
-        - $CM_BUILD_DIR/SourcePackages
-        - $HOME/Library/Developer/Xcode/DerivedData/**/SourcePackages
-        - $HOME/.cache/swift-package-manager
+    # Cache disabled temporarily to ensure fresh builds
+    # cache:
+    #   cache_paths:
+    #     - $CM_BUILD_DIR/SourcePackages
+    #     - $HOME/Library/Developer/Xcode/DerivedData/**/SourcePackages
+    #     - $HOME/.cache/swift-package-manager
     triggering:
       events:
         - push
