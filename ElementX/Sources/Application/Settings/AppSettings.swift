@@ -411,10 +411,7 @@ final class AppSettings {
     /// Configuration to enable only signed device isolation mode for  crypto. In this mode only devices signed by their owner will be considered in e2ee rooms.
     @UserPreference(key: UserDefaultsKeys.enableOnlySignedDeviceIsolationMode, defaultValue: false, storageType: .userDefaults(store))
     var enableOnlySignedDeviceIsolationMode
-    
-    @UserPreference(key: UserDefaultsKeys.hideQuietNotificationAlerts, defaultValue: false, storageType: .userDefaults(store))
-    var hideQuietNotificationAlerts
-    
+
     // MARK: - Feral Server Configuration
     
     /// Returns the list of Feral account providers with locale-based ordering
