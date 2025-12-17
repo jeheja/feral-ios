@@ -25,6 +25,12 @@ struct AuthenticationStartLogo: View {
     var body: some View {
         if hideBrandChrome {
             Image(asset: Asset.Images.appLogo)
+                .padding(24)
+                .background {
+                    Color.black
+                }
+                .clipShape(outerShape)
+                .accessibilityHidden(true)
         } else {
             brandLogo
         }
