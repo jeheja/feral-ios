@@ -11,8 +11,8 @@ options:
   groupSortPosition: bottom
   createIntermediateGroups: true
   deploymentTarget:
-    iOS: '18.5'
-    macOS: '14.5'
+    iOS: '17.0'
+    macOS: '14.0'
   groupOrdering:
   - order:
     - ElementX
