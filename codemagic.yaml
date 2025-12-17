@@ -98,13 +98,15 @@ workflows:
       - name: Build for simulator
         script: |
           echo "Building for iOS Simulator (no code signing required)..."
-          # Disable code signing and entitlements for simulator build
+          # Build only for arm64 simulator (native architecture on M2)
           xcodebuild build \
             -project "$XCODE_PROJECT" \
             -scheme "$XCODE_SCHEME" \
             -sdk iphonesimulator \
             -configuration Debug \
-            -destination "generic/platform=iOS Simulator" \
+            -destination "platform=iOS Simulator,name=iPhone 16,OS=18.5" \
+            -arch arm64 \
+            ONLY_ACTIVE_ARCH=YES \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_IDENTITY="" \
