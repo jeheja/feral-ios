@@ -1,7 +1,8 @@
 //
-// Copyright 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2024-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -76,7 +77,7 @@ class RoomRolesAndPermissionsFlowCoordinator: FlowCoordinatorProtocol {
         configureStateMachine()
     }
     
-    func start() {
+    func start(animated: Bool) {
         stateMachine.tryEvent(.start)
     }
     
@@ -107,15 +108,21 @@ class RoomRolesAndPermissionsFlowCoordinator: FlowCoordinatorProtocol {
         
         stateMachine.addRoutes(event: .changeRoles, transitions: [.rolesAndPermissionsScreen => .changingRoles]) { [weak self] context in
             guard let role = context.userInfo as? RoomRolesAndPermissionsScreenRole else { fatalError("Expected a role") }
-            self?.presentChangeRolesScreen(role: role)
+            let mode: RoomRole = switch role {
+            case .administrators:
+                .administrator
+            case .moderators:
+                .moderator
+            }
+            self?.presentChangeRolesScreen(mode: mode)
         }
         stateMachine.addRoutes(event: .finishedChangingRoles, transitions: [.changingRoles => .rolesAndPermissionsScreen])
         
         stateMachine.addRoutes(event: .changePermissions, transitions: [.rolesAndPermissionsScreen => .changingPermissions]) { [weak self] context in
-            guard let (permissions, group) = context.userInfo as? (RoomPermissions, RoomRolesAndPermissionsScreenPermissionsGroup) else {
+            guard let permissions = context.userInfo as? RoomPermissions else {
                 fatalError("Expected a group and the current permissions")
             }
-            self?.presentChangePermissionsScreen(permissions: permissions, group: group)
+            self?.presentChangePermissionsScreen(permissions: permissions)
         }
         stateMachine.addRoutes(event: .finishedChangingPermissions, transitions: [.changingPermissions => .rolesAndPermissionsScreen])
         
@@ -137,8 +144,8 @@ class RoomRolesAndPermissionsFlowCoordinator: FlowCoordinatorProtocol {
             switch action {
             case .editRoles(let role):
                 stateMachine.tryEvent(.changeRoles, userInfo: role)
-            case .editPermissions(let permissions, let group):
-                stateMachine.tryEvent(.changePermissions, userInfo: (permissions, group))
+            case .editPermissions(let permissions):
+                stateMachine.tryEvent(.changePermissions, userInfo: permissions)
             case .demotedOwnUser:
                 stateMachine.tryEvent(.demotedOwnUser)
             }
@@ -150,12 +157,7 @@ class RoomRolesAndPermissionsFlowCoordinator: FlowCoordinatorProtocol {
         }
     }
     
-    private func presentChangeRolesScreen(role: RoomRolesAndPermissionsScreenRole) {
-        let mode = switch role {
-        case .administrators: RoomMemberDetails.Role.administrator
-        case .moderators: RoomMemberDetails.Role.moderator
-        }
-        
+    private func presentChangeRolesScreen(mode: RoomRole) {
         let parameters = RoomChangeRolesScreenCoordinatorParameters(mode: mode,
                                                                     roomProxy: roomProxy,
                                                                     mediaProvider: mediaProvider,
@@ -177,9 +179,8 @@ class RoomRolesAndPermissionsFlowCoordinator: FlowCoordinatorProtocol {
         }
     }
     
-    private func presentChangePermissionsScreen(permissions: RoomPermissions, group: RoomRolesAndPermissionsScreenPermissionsGroup) {
+    private func presentChangePermissionsScreen(permissions: RoomPermissions) {
         let parameters = RoomChangePermissionsScreenCoordinatorParameters(permissions: permissions,
-                                                                          permissionsGroup: group,
                                                                           roomProxy: roomProxy,
                                                                           userIndicatorController: userIndicatorController,
                                                                           analytics: analytics)

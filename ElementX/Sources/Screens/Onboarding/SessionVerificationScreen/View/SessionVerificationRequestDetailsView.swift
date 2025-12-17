@@ -1,7 +1,8 @@
 //
-// Copyright 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2024-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -32,6 +33,7 @@ struct SessionVerificationRequestDetailsView: View {
                                 contentID: details.senderProfile.userID,
                                 avatarSize: .user(on: .sessionVerification),
                                 mediaProvider: mediaProvider)
+                .accessibilityHidden(true)
             
             VStack(alignment: .leading, spacing: 0) {
                 Text(details.senderProfile.displayName ?? details.senderProfile.userID)
@@ -45,6 +47,7 @@ struct SessionVerificationRequestDetailsView: View {
                 }
             }
         }
+        .accessibilityElement(children: .combine)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
         .background(.compound.bgSubtleSecondary)

@@ -1,7 +1,8 @@
 //
-// Copyright 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2024-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -9,7 +10,7 @@ import Compound
 import SwiftUI
 
 struct ManageRoomMemberSheetView: View {
-    @ObservedObject var context: ManageRoomMemberSheetViewModelType.Context
+    @Bindable var context: ManageRoomMemberSheetViewModelType.Context
     
     var body: some View {
         Form {
@@ -74,7 +75,7 @@ struct ManageRoomMemberSheetView: View {
 struct ManageRoomMemberSheetView_Previews: PreviewProvider, TestablePreview {
     static let allActionsViewModel = ManageRoomMemberSheetViewModel.mock()
     
-    static let allActionsDisabledViewModel = ManageRoomMemberSheetViewModel.mock(powerLevel: 0)
+    static let allActionsDisabledViewModel = ManageRoomMemberSheetViewModel.mock(powerLevel: .init(value: 0))
     
     static let kickOnlyViewModel = ManageRoomMemberSheetViewModel.mock(canBan: false)
     
@@ -100,7 +101,7 @@ private extension ManageRoomMemberSheetViewModel {
     static func mock(canKick: Bool = true,
                      canBan: Bool = true,
                      memberIsBanned: Bool = false,
-                     powerLevel: Int = 100) -> ManageRoomMemberSheetViewModel {
+                     powerLevel: RoomPowerLevel = .init(value: 100)) -> ManageRoomMemberSheetViewModel {
         let member = if memberIsBanned {
             RoomMemberDetails(withProxy: RoomMemberProxyMock.mockBanned[0])
         } else {

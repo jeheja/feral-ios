@@ -1,7 +1,8 @@
 //
+// Copyright 2025 Element Creations Ltd.
 // Copyright 2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -34,7 +35,7 @@ class ManageRoomMemberSheetViewModelTests: XCTestCase {
                                                    analyticsService: ServiceLocator.shared.analytics,
                                                    mediaProvider: MediaProviderMock(configuration: .init()))
         
-        let deferred = deferFulfillment(context.$viewState) { $0.bindings.alertInfo != nil }
+        let deferred = deferFulfillment(context.observe(\.viewState.bindings.alertInfo)) { $0 != nil }
         let deferredAction = deferFulfillment(viewModel.actions) { action in
             action == .dismiss(shouldShowDetails: false)
         }
@@ -65,7 +66,7 @@ class ManageRoomMemberSheetViewModelTests: XCTestCase {
                                                    analyticsService: ServiceLocator.shared.analytics,
                                                    mediaProvider: MediaProviderMock(configuration: .init()))
         
-        let deferred = deferFulfillment(context.$viewState) { $0.bindings.alertInfo != nil }
+        let deferred = deferFulfillment(context.observe(\.viewState.bindings.alertInfo)) { $0 != nil }
         context.send(viewAction: .ban)
         try await deferred.fulfill()
         

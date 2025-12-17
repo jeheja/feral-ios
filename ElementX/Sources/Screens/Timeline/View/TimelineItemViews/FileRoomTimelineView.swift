@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -87,7 +88,7 @@ struct MediaFileRoomTimelineContent: View {
             }
             .font(.compound.bodyLG)
             .foregroundStyle(.compound.textPrimary)
-            .lineLimit(1)
+            .lineLimit(2)
         } icon: {
             CompoundIcon(icon, size: .xSmall, relativeTo: .body)
                 .foregroundColor(.compound.iconPrimary)
@@ -109,6 +110,9 @@ struct FileRoomTimelineView_Previews: PreviewProvider, TestablePreview {
             FileRoomTimelineView(timelineItem: makeItem(filename: "document.pdf"))
             
             FileRoomTimelineView(timelineItem: makeItem(filename: "document.pdf",
+                                                        fileSize: 3 * 1024 * 1024))
+            
+            FileRoomTimelineView(timelineItem: makeItem(filename: "very very very very long named document.pdf",
                                                         fileSize: 3 * 1024 * 1024))
             
             FileRoomTimelineView(timelineItem: makeItem(filename: "spreadsheet.xlsx",

@@ -7,8 +7,10 @@ if File.exist?(enterprise)
   import enterprise
 end
 
+simulator_version = "26.1"
+
 before_all do
-  xcversion(version: "16.3")
+  xcversion(version: "~> 26.1.0")
 
   ENV["FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT"] = "180"
   ENV["FASTLANE_XCODE_LIST_TIMEOUT"] = "180"
@@ -20,21 +22,28 @@ lane :unit_tests do |options|
   
   run_tests(
     scheme: "UnitTests",
-    device: "iPhone 16 (18.4)",
+    device: "iPhone 17 (#{simulator_version})",
     ensure_devices_found: true,
     result_bundle: true,
     number_of_retries: 3,
-    reset_simulator: reset_simulator
+    reset_simulator: reset_simulator,
+    xcodebuild_formatter: "xcbeautify --quiet --is-ci --renderer github-actions"
   )
   
   if !options[:skip_previews]
+    create_simulator_if_necessary(
+      name: "iPhone SE (3rd generation)",
+      type: "com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation"
+    )
+
     run_tests(
       scheme: "PreviewTests",
-      device: "iPhone SE (3rd generation) (18.4)",
+      device: "iPhone SE (3rd generation) (#{simulator_version})",
       ensure_devices_found: true,
       result_bundle: true,
       number_of_retries: 3,
-      reset_simulator: reset_simulator
+      reset_simulator: reset_simulator,
+      xcodebuild_formatter: "xcbeautify --quiet --is-ci --renderer github-actions"
     )
   end
   
@@ -46,20 +55,18 @@ lane :ui_tests do |options|
   # Presumably because launching 2 simulators uses more memory than the runner has available.
   
   if options[:device] == "iPhone"
-    device = "iPhone-18.4"
+    device = "iPhone-#{simulator_version}"
     
     create_simulator_if_necessary(
-      name: "iPhone-18.4",
-      type: "com.apple.CoreSimulator.SimDeviceType.iPhone-16",
-      runtime: "com.apple.CoreSimulator.SimRuntime.iOS-18-4"
+      name: "iPhone-#{simulator_version}",
+      type: "com.apple.CoreSimulator.SimDeviceType.iPhone-17"
     )
   elsif options[:device] == "iPad"
-    device = "iPad-18.4"
+    device = "iPad-#{simulator_version}"
     
     create_simulator_if_necessary(
-      name: "iPad-18.4",
-      type: "com.apple.CoreSimulator.SimDeviceType.iPad-10th-generation",
-      runtime: "com.apple.CoreSimulator.SimRuntime.iOS-18-4"
+      name: "iPad-#{simulator_version}",
+      type: "com.apple.CoreSimulator.SimDeviceType.iPad-A16"
     )
   else
     UI.user_error!("Please supply a device argument as device:iPhone or device:iPad")
@@ -75,34 +82,45 @@ lane :ui_tests do |options|
   
   run_tests(
     scheme: "UITests",
-    device: device,
+    device: "#{device} (#{simulator_version})",
     ensure_devices_found: true,
     prelaunch_simulator: false,
     result_bundle: true,
     only_testing: test_to_run,
     number_of_retries: 3,
-    reset_simulator: reset_simulator
+    reset_simulator: reset_simulator,
+    xcodebuild_formatter: "xcbeautify --quiet --is-ci --renderer github-actions"
+  )
+end
+
+lane :accessibility_tests do |options|
+  reset_simulator = ENV.key?('CI')
+  
+  run_tests(
+    scheme: "AccessibilityTests",
+    device: "iPhone 16 (18.5)", # The tests are randomly crashing on iOS 26
+    ensure_devices_found: true,
+    prelaunch_simulator: false,
+    result_bundle: true,
+    number_of_retries: 0,
+    reset_simulator: reset_simulator,
+    xcodebuild_formatter: "xcbeautify --quiet --is-ci --renderer github-actions"
   )
 end
 
 
 lane :integration_tests do
   clear_derived_data()
-  
-  create_simulator_if_necessary(
-    name: "iPhone-18.4",
-    type: "com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro",
-    runtime: "com.apple.CoreSimulator.SimRuntime.iOS-18-4"
-  )
 
   reset_simulator = ENV.key?('CI')
 
   run_tests(
     scheme: "IntegrationTests",
-    device: "iPhone-18.4",
+    device: "iPhone 17 (#{simulator_version})",
     ensure_devices_found: true,
     result_bundle: true,
-    reset_simulator: reset_simulator
+    reset_simulator: reset_simulator,
+    xcodebuild_formatter: "xcbeautify --quiet --is-ci --renderer github-actions"
   )
 end
 
@@ -136,7 +154,7 @@ lane :config_nightly do |options|
   release_version = get_version_number(target: "ElementX")
 
   Dir.chdir ".." do
-    sh("swift run tools app-icon-banner Variants/Nightly/Resources/Nightly.xcassets/NightlyAppIcon.appiconset/AppIcon.png --banner-text '#{release_version} (#{build_number})'")
+    sh("swift run tools app-icon-banner Variants/Nightly/Resources/NightlyAppIcon.icon/Assets/Version.png --banner-text '#{release_version} (#{build_number})'")
   end
 end
 
@@ -301,15 +319,23 @@ private_lane :create_simulator_if_necessary do |options|
 
   simulator_type = options[:type]
   UI.user_error!("Invalid simulator type") unless !simulator_type.to_s.empty?
-  
-  simulator_runtime = options[:runtime]
-  UI.user_error!("Invalid simulator runtime") unless !simulator_runtime.to_s.empty?
 
+  simulator_runtime = "com.apple.CoreSimulator.SimRuntime.iOS-#{simulator_version.gsub('.', '-')}"
 
+  simulators = sh("xcrun simctl list devices \"iOS #{simulator_version}\" available")
   # Use a `(` here to avoid matching `iPhone 14 Pro` on `iPhone 14 Pro Max` for example
-  begin sh("xcrun simctl list devices | grep '#{simulator_name} ('")
-    UI.success "Simulator already exists"
-  rescue
-    sh("xcrun simctl create '#{simulator_name}' #{simulator_type} #{simulator_runtime}")
+  existing_simulator = simulators.lines.find { |line| line.include?("#{simulator_name} (") }
+  
+  if existing_simulator
+    UI.message("Found simulator: #{existing_simulator.inspect}")
+    device_id = existing_simulator.match(/\(([A-F0-9-]+)\)/)[1] # Extract the device ID for the existing simulator
+  else
+    UI.message "Simulator #{simulator_name} not found. Creating new simulator…"
+    create_command = "xcrun simctl create '#{simulator_name}\' #{simulator_type} #{simulator_runtime}"
+    device_id = sh(create_command).strip # Create a new simulator and get its device ID.
+    
+    UI.message "Created new simulator: #{simulator_name} (#{device_id})"
   end
+  
+  # device_id is unused right now but is useful to check e.g. the boot status of a simulator.
 end

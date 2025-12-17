@@ -1,7 +1,8 @@
 //
-// Copyright 2021-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2021-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -99,7 +100,6 @@ private struct BackgroundView<Content: View>: View {
             .clipShape(RoundedCornerShape(radius: shadowRadius, corners: [.topLeft, .topRight]))
             .shadow(color: .black.opacity(0.20), radius: 20.0, x: 0.0, y: 3.0)
             .mask(Rectangle().padding(.init(top: -(shadowRadius * 2), leading: 0.0, bottom: 0.0, trailing: 0.0)))
-            .edgesIgnoringSafeArea(.all)
     }
 }
 

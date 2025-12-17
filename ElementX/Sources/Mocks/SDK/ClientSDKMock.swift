@@ -1,7 +1,8 @@
 //
-// Copyright 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2024-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -18,6 +19,7 @@ extension ClientSDKMock {
         var oidcLoginURL: String? = "https://account.matrix.org/authorize"
         var supportsOIDCCreatePrompt = true
         var supportsPasswordLogin = true
+        var elementWellKnown: String?
         var validCredentials = (username: "alice", password: "12345678")
         
         // MARK: Session
@@ -41,7 +43,8 @@ extension ClientSDKMock {
         slidingSyncVersionReturnValue = configuration.slidingSyncVersion
         userIdServerNameThrowableError = MockError.generic
         serverReturnValue = "https://\(configuration.serverAddress)"
-        urlForOidcOidcConfigurationPromptLoginHintReturnValue = OAuthAuthorizationDataSDKMock(configuration: configuration)
+        homeserverReturnValue = configuration.homeserverURL
+        urlForOidcOidcConfigurationPromptLoginHintDeviceIdAdditionalScopesReturnValue = OAuthAuthorizationDataSDKMock(configuration: configuration)
         loginUsernamePasswordInitialDeviceNameDeviceIdClosure = { username, password, _, _ in
             guard username == configuration.validCredentials.username,
                   password == configuration.validCredentials.password else {
@@ -51,6 +54,14 @@ extension ClientSDKMock {
         
         userIdReturnValue = configuration.userID
         sessionReturnValue = configuration.session
+        getUrlUrlClosure = { url in
+            guard url.contains(".well-known/element/element.json") else { throw MockError.generic }
+            if let elementWellKnownData = configuration.elementWellKnown?.data(using: .utf8) {
+                return elementWellKnownData
+            } else {
+                throw MockError.generic
+            }
+        }
     }
 }
 

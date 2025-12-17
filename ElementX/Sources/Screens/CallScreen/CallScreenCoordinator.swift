@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -13,7 +14,9 @@ struct CallScreenCoordinatorParameters {
     let elementCallService: ElementCallServiceProtocol
     let configuration: ElementCallConfiguration
     let allowPictureInPicture: Bool
+    let appSettings: AppSettings
     let appHooks: AppHooks
+    let analytics: AnalyticsService
 }
 
 enum CallScreenCoordinatorAction {
@@ -44,8 +47,8 @@ final class CallScreenCoordinator: CoordinatorProtocol {
                                         configuration: parameters.configuration,
                                         allowPictureInPicture: parameters.allowPictureInPicture,
                                         appHooks: parameters.appHooks,
-                                        appSettings: ServiceLocator.shared.settings,
-                                        analyticsService: ServiceLocator.shared.analytics)
+                                        appSettings: parameters.appSettings,
+                                        analyticsService: parameters.analytics)
     }
     
     func start() {

@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -15,6 +16,8 @@ class AuthenticationStartScreenViewModel: AuthenticationStartScreenViewModelType
     private let provisioningParameters: AccountProvisioningParameters?
     private let appSettings: AppSettings
     private let userIndicatorController: UserIndicatorControllerProtocol
+    
+    private let canReportProblem: Bool
     
     private var actionsSubject: PassthroughSubject<AuthenticationStartScreenViewModelAction, Never> = .init()
     
@@ -31,6 +34,7 @@ class AuthenticationStartScreenViewModel: AuthenticationStartScreenViewModelType
         self.provisioningParameters = provisioningParameters
         self.appSettings = appSettings
         self.userIndicatorController = userIndicatorController
+        canReportProblem = isBugReportServiceEnabled
         
         let isQRCodeScanningSupported = !ProcessInfo.processInfo.isiOSAppOnMac
         
@@ -40,19 +44,19 @@ class AuthenticationStartScreenViewModel: AuthenticationStartScreenViewModelType
             AuthenticationStartScreenViewState(serverName: appSettings.accountProviders.count == 1 ? appSettings.accountProviders[0] : nil,
                                                showCreateAccountButton: false,
                                                showQRCodeLoginButton: isQRCodeScanningSupported,
-                                               showReportProblemButton: isBugReportServiceEnabled)
+                                               hideBrandChrome: appSettings.hideBrandChrome)
         } else if let provisioningParameters {
             // We only show the "Sign in to …" button when using a provisioning link.
             AuthenticationStartScreenViewState(serverName: provisioningParameters.accountProvider,
                                                showCreateAccountButton: false,
                                                showQRCodeLoginButton: false,
-                                               showReportProblemButton: isBugReportServiceEnabled)
+                                               hideBrandChrome: appSettings.hideBrandChrome)
         } else {
             // The default configuration.
             AuthenticationStartScreenViewState(serverName: nil,
                                                showCreateAccountButton: appSettings.showCreateAccountButton,
                                                showQRCodeLoginButton: isQRCodeScanningSupported,
-                                               showReportProblemButton: isBugReportServiceEnabled)
+                                               hideBrandChrome: appSettings.hideBrandChrome)
         }
         
         super.init(initialViewState: initialViewState)
@@ -70,7 +74,9 @@ class AuthenticationStartScreenViewModel: AuthenticationStartScreenViewModelType
         case .register:
             actionsSubject.send(.register)
         case .reportProblem:
-            actionsSubject.send(.reportProblem)
+            if canReportProblem {
+                actionsSubject.send(.reportProblem)
+            }
         }
     }
     

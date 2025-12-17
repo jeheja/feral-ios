@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -24,11 +25,18 @@ struct UserIndicatorModalView: View {
                 HStack(spacing: 8) {
                     if let iconName = indicator.iconName {
                         Image(systemName: iconName)
-                            .font(.compound.bodyLG)
+                            .font(titleFont)
                             .foregroundColor(.compound.iconPrimary)
                     }
+                    
                     Text(indicator.title)
-                        .font(.compound.bodyLG)
+                        .font(titleFont)
+                        .foregroundColor(.compound.textPrimary)
+                }
+                
+                if let message = indicator.message {
+                    Text(message)
+                        .font(.compound.bodyMD)
                         .foregroundColor(.compound.textPrimary)
                 }
             }
@@ -53,16 +61,23 @@ struct UserIndicatorModalView: View {
         .ignoresSafeArea()
         .interactiveDismissDisabled(indicator.interactiveDismissDisabled)
     }
+    
+    private var titleFont: Font {
+        if indicator.message != nil {
+            .compound.headingMDBold
+        } else {
+            .compound.bodyLG
+        }
+    }
 }
 
 struct UserIndicatorModalView_Previews: PreviewProvider, TestablePreview {
     static var previews: some View {
-        Group {
+        VStack(spacing: 0) {
             UserIndicatorModalView(indicator: UserIndicator(type: .modal,
                                                             title: "Successfully logged in",
                                                             iconName: "checkmark")
             )
-            .previewDisplayName("Spinner")
             
             UserIndicatorModalView(indicator: UserIndicator(type: .modal(progress: .published(CurrentValueSubject<Double, Never>(0.5).asCurrentValuePublisher()),
                                                                          interactiveDismissDisabled: false,
@@ -70,7 +85,6 @@ struct UserIndicatorModalView_Previews: PreviewProvider, TestablePreview {
                                                             title: "Successfully logged in",
                                                             iconName: "checkmark")
             )
-            .previewDisplayName("Progress Bar")
             
             UserIndicatorModalView(indicator: UserIndicator(type: .modal(progress: .none,
                                                                          interactiveDismissDisabled: false,
@@ -78,7 +92,12 @@ struct UserIndicatorModalView_Previews: PreviewProvider, TestablePreview {
                                                             title: "Successfully logged in",
                                                             iconName: "checkmark")
             )
-            .previewDisplayName("No progress")
+            
+            UserIndicatorModalView(indicator: UserIndicator(type: .modal,
+                                                            title: "Successfully logged in",
+                                                            message: "You can now be happy.",
+                                                            iconName: "checkmark")
+            )
         }
     }
 }

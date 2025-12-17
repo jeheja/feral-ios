@@ -1,12 +1,13 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
 import Foundation
-import KeychainAccess
+@preconcurrency import KeychainAccess
 import MatrixRustSDK
 
 enum KeychainControllerService: String {
@@ -22,7 +23,7 @@ enum KeychainControllerService: String {
     }
 }
 
-class KeychainController: KeychainControllerProtocol {
+final class KeychainController: KeychainControllerProtocol {
     /// The keychain responsible for storing account restoration tokens (keyed by userID).
     private let restorationTokenKeychain: Keychain
     /// The keychain responsible for storing all other secrets in the app (keyed by `Key`s).
@@ -54,8 +55,12 @@ class KeychainController: KeychainControllerProtocol {
             guard let tokenData = try restorationTokenKeychain.getData(username) else {
                 return nil
             }
-
+            
             return try JSONDecoder().decode(RestorationToken.self, from: tokenData)
+        } catch RestorationTokenError.slidingSyncProxyNotSupported {
+            MXLog.error("Unsupported user restore token (contains sliding sync proxy). Deleting token.")
+            removeRestorationTokenForUsername(username)
+            return nil
         } catch {
             MXLog.error("Failed retrieving user restore token")
             return nil
@@ -112,8 +117,7 @@ class KeychainController: KeychainControllerProtocol {
         let restorationToken = RestorationToken(session: session,
                                                 sessionDirectories: oldToken.sessionDirectories,
                                                 passphrase: oldToken.passphrase,
-                                                pusherNotificationClientIdentifier: oldToken.pusherNotificationClientIdentifier,
-                                                slidingSyncProxyURLString: oldToken.slidingSyncProxyURLString)
+                                                pusherNotificationClientIdentifier: oldToken.pusherNotificationClientIdentifier)
         setRestorationToken(restorationToken, forUsername: session.userId)
     }
     

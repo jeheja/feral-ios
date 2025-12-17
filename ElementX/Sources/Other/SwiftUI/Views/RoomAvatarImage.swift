@@ -1,7 +1,8 @@
 //
-// Copyright 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2024-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -9,17 +10,37 @@ import SwiftUI
 
 /// Information about a room avatar such as it's URL or the heroes to use as a fallback.
 enum RoomAvatar: Equatable {
-    /// An avatar generated from the room's details.
+    /// An avatar generated from a Room's details.
     case room(id: String, name: String?, avatarURL: URL?)
-    /// An avatar generated from the room's heroes.
+    /// An avatar generated from a collection of room heroes.
     case heroes([UserProfileProxy])
+    /// An avatar generated from a Space's details.
+    case space(id: String, name: String?, avatarURL: URL?)
+    /// A static avatar for a tombstoned room.
+    case tombstoned
     
     var removingAvatar: RoomAvatar {
         switch self {
         case let .room(id, name, _):
-            return .room(id: id, name: name, avatarURL: nil)
+            .room(id: id, name: name, avatarURL: nil)
         case let .heroes(users):
-            return .heroes(users.map { .init(userID: $0.userID, displayName: $0.displayName, avatarURL: nil) })
+            .heroes(users.map { .init(userID: $0.userID, displayName: $0.displayName, avatarURL: nil) })
+        case .space(let id, let name, _):
+            .space(id: id, name: name, avatarURL: nil)
+        case .tombstoned:
+            .tombstoned
+        }
+    }
+    
+    var hasURL: Bool {
+        switch self {
+        case let .room(_, _, url),
+             let .space(_, _, url):
+            return url != nil
+        case let .heroes(heroes):
+            return heroes.first?.avatarURL != nil
+        case .tombstoned:
+            return false
         }
     }
 }
@@ -49,7 +70,7 @@ struct RoomAvatarImage: View {
             // We will expand upon this with more stack sizes in the future.
             if users.count == 0 {
                 let _ = assertionFailure("We should never pass empty heroes here.")
-                PlaceholderAvatarImage(name: nil, contentID: nil)
+                PlaceholderAvatarImage(name: nil, contentID: "")
             } else if users.count == 2 {
                 let clusterSize = avatarSize.value * 1.6
                 ZStack {
@@ -91,41 +112,69 @@ struct RoomAvatarImage: View {
                                     mediaProvider: mediaProvider,
                                     onTap: onAvatarTap)
             }
+        case .space(let id, let name, let avatarURL):
+            LoadableAvatarImage(url: avatarURL,
+                                name: name,
+                                contentID: id,
+                                isSpace: true,
+                                avatarSize: avatarSize,
+                                mediaProvider: mediaProvider,
+                                onTap: onAvatarTap)
+        case .tombstoned:
+            TombstonedAvatarImage(avatarSize: avatarSize)
         }
     }
 }
 
 struct RoomAvatarImage_Previews: PreviewProvider, TestablePreview {
     static var previews: some View {
-        HStack(spacing: 8) {
-            RoomAvatarImage(avatar: .room(id: "!1:server.com",
-                                          name: "Room",
-                                          avatarURL: nil),
-                            avatarSize: .room(on: .home),
-                            mediaProvider: MediaProviderMock(configuration: .init()))
+        VStack(spacing: 20) {
+            HStack(spacing: 12) {
+                RoomAvatarImage(avatar: .room(id: "!1:server.com",
+                                              name: "Room",
+                                              avatarURL: nil),
+                                avatarSize: .room(on: .chats),
+                                mediaProvider: MediaProviderMock(configuration: .init()))
+                
+                RoomAvatarImage(avatar: .room(id: "!2:server.com",
+                                              name: "Room",
+                                              avatarURL: .mockMXCAvatar),
+                                avatarSize: .room(on: .chats),
+                                mediaProvider: MediaProviderMock(configuration: .init()))
+                
+                RoomAvatarImage(avatar: .space(id: "!space:server.com",
+                                               name: "Room",
+                                               avatarURL: nil),
+                                avatarSize: .room(on: .chats),
+                                mediaProvider: MediaProviderMock(configuration: .init()))
+                
+                RoomAvatarImage(avatar: .space(id: "!otherspace:server.com",
+                                               name: "Room",
+                                               avatarURL: .mockMXCAvatar),
+                                avatarSize: .room(on: .chats),
+                                mediaProvider: MediaProviderMock(configuration: .init()))
+                
+                RoomAvatarImage(avatar: .tombstoned, avatarSize: .room(on: .chats), mediaProvider: MediaProviderMock(configuration: .init()))
+            }
             
-            RoomAvatarImage(avatar: .room(id: "!2:server.com",
-                                          name: "Room",
-                                          avatarURL: .mockMXCAvatar),
-                            avatarSize: .room(on: .home),
-                            mediaProvider: MediaProviderMock(configuration: .init()))
-            
-            RoomAvatarImage(avatar: .heroes([.init(userID: "@user:server.com",
-                                                   displayName: "User",
-                                                   avatarURL: nil)]),
-            avatarSize: .room(on: .home),
-            mediaProvider: MediaProviderMock(configuration: .init()))
-            
-            RoomAvatarImage(avatar: .heroes([.init(userID: "@user:server.com",
-                                                   displayName: "User",
-                                                   avatarURL: .mockMXCAvatar)]),
-            avatarSize: .room(on: .home),
-            mediaProvider: MediaProviderMock(configuration: .init()))
-            
-            RoomAvatarImage(avatar: .heroes([.init(userID: "@alice:server.com", displayName: "Alice", avatarURL: nil),
-                                             .init(userID: "@bob:server.net", displayName: "Bob", avatarURL: nil)]),
-                            avatarSize: .room(on: .home),
-                            mediaProvider: MediaProviderMock(configuration: .init()))
+            HStack(spacing: 12) {
+                RoomAvatarImage(avatar: .heroes([.init(userID: "@user:server.com",
+                                                       displayName: "User",
+                                                       avatarURL: nil)]),
+                avatarSize: .room(on: .chats),
+                mediaProvider: MediaProviderMock(configuration: .init()))
+                
+                RoomAvatarImage(avatar: .heroes([.init(userID: "@user:server.com",
+                                                       displayName: "User",
+                                                       avatarURL: .mockMXCAvatar)]),
+                avatarSize: .room(on: .chats),
+                mediaProvider: MediaProviderMock(configuration: .init()))
+                
+                RoomAvatarImage(avatar: .heroes([.init(userID: "@alice:server.com", displayName: "Alice", avatarURL: nil),
+                                                 .init(userID: "@bob:server.net", displayName: "Bob", avatarURL: nil)]),
+                                avatarSize: .room(on: .chats),
+                                mediaProvider: MediaProviderMock(configuration: .init()))
+            }
         }
     }
 }

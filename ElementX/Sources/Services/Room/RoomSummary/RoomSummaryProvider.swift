@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -89,10 +90,12 @@ class RoomSummaryProvider: RoomSummaryProviderProtocol {
         self.roomList = roomList
         
         do {
-            listUpdatesSubscriptionResult = roomList.entriesWithDynamicAdapters(pageSize: UInt32(roomListPageSize), listener: SDKListener { [weak self] updates in
-                guard let self else { return }
-                diffsPublisher.send(updates)
-            })
+            listUpdatesSubscriptionResult = roomList.entriesWithDynamicAdaptersWith(pageSize: UInt32(roomListPageSize),
+                                                                                    enableLatestEventSorter: true,
+                                                                                    listener: SDKListener { [weak self] updates in
+                                                                                        guard let self else { return }
+                                                                                        diffsPublisher.send(updates)
+                                                                                    })
             
             // Forces the listener above to be called with the current state
             setFilter(.all(filters: []))
@@ -116,20 +119,28 @@ class RoomSummaryProvider: RoomSummaryProviderProtocol {
     }
     
     func setFilter(_ filter: RoomSummaryProviderFilter) {
+        let baseFilter: [RoomListEntriesDynamicFilterKind] = [.any(filters: [.all(filters: [.nonSpace, .nonLeft]),
+                                                                             .all(filters: [.space, .invite])]),
+                                                              .deduplicateVersions]
+        
         switch filter {
         case .excludeAll:
             _ = listUpdatesSubscriptionResult?.controller().setFilter(kind: .none)
         case let .search(query):
-            let filters: [RoomListEntriesDynamicFilterKind] = if appSettings.fuzzyRoomListSearchEnabled {
-                [.fuzzyMatchRoomName(pattern: query), .nonLeft, .deduplicateVersions]
+            let filters = if appSettings.fuzzyRoomListSearchEnabled {
+                [.fuzzyMatchRoomName(pattern: query)] + baseFilter
             } else {
-                [.normalizedMatchRoomName(pattern: query), .nonLeft, .deduplicateVersions]
+                [.normalizedMatchRoomName(pattern: query)] + baseFilter
             }
             _ = listUpdatesSubscriptionResult?.controller().setFilter(kind: .all(filters: filters))
         case let .all(filters):
-            var filters = filters.map(\.rustFilter)
-            filters.append(contentsOf: [.nonLeft, .deduplicateVersions])
-            _ = listUpdatesSubscriptionResult?.controller().setFilter(kind: .all(filters: filters))
+            var rustFilters = filters.map(\.rustFilter) + baseFilter
+            
+            if !filters.contains(.lowPriority), appSettings.lowPriorityFilterEnabled {
+                rustFilters.append(.nonLowPriority)
+            }
+            
+            _ = listUpdatesSubscriptionResult?.controller().setFilter(kind: .all(filters: rustFilters))
         }
     }
     
@@ -177,10 +188,12 @@ class RoomSummaryProvider: RoomSummaryProviderProtocol {
             .sink { [weak self] roomIDs in
                 guard let self else { return }
                 
-                do {
-                    try roomListService.subscribeToRooms(roomIds: roomIDs)
-                } catch {
-                    MXLog.error("Failed subscribing to rooms with error: \(error)")
+                Task { [weak self] in
+                    do {
+                        try await self?.roomListService.subscribeToRooms(roomIds: roomIDs)
+                    } catch {
+                        MXLog.error("Failed subscribing to rooms with error: \(error)")
+                    }
                 }
             }
             .store(in: &cancellables)
@@ -212,10 +225,10 @@ class RoomSummaryProvider: RoomSummaryProviderProtocol {
         return updatedItems
     }
 
-    private func fetchRoomDetails(from room: Room) -> (roomInfo: RoomInfo?, latestEvent: EventTimelineItem?) {
+    private func fetchRoomDetails(from room: Room) -> (roomInfo: RoomInfo?, latestEvent: LatestEventValue?) {
         class FetchResult {
             var roomInfo: RoomInfo?
-            var latestEvent: EventTimelineItem?
+            var latestEvent: LatestEventValue?
         }
         
         let semaphore = DispatchSemaphore(value: 0)
@@ -243,11 +256,22 @@ class RoomSummaryProvider: RoomSummaryProviderProtocol {
         
         var attributedLastMessage: AttributedString?
         var lastMessageDate: Date?
+        var lastMessageState: RoomSummary.LastMessageState?
         
         if let latestRoomMessage = roomDetails.latestEvent {
-            let lastMessage = EventTimelineItemProxy(item: latestRoomMessage, uniqueID: .init("0"))
-            lastMessageDate = lastMessage.timestamp
-            attributedLastMessage = eventStringBuilder.buildAttributedString(for: lastMessage)
+            switch latestRoomMessage {
+            case .local(let timestamp, let senderID, let profile, let content, let isSending):
+                let sender = TimelineItemSender(senderID: senderID, senderProfile: profile)
+                attributedLastMessage = eventStringBuilder.buildAttributedString(for: content, sender: sender, isOutgoing: true)
+                lastMessageDate = Date(timeIntervalSince1970: TimeInterval(timestamp / 1000))
+                lastMessageState = isSending ? .sending : .failed // No need to worry about sent for .local: https://github.com/matrix-org/matrix-rust-sdk/issues/3941
+            case .remote(let timestamp, let senderID, let isOwn, let profile, let content):
+                let sender = TimelineItemSender(senderID: senderID, senderProfile: profile)
+                attributedLastMessage = eventStringBuilder.buildAttributedString(for: content, sender: sender, isOutgoing: isOwn)
+                lastMessageDate = Date(timeIntervalSince1970: TimeInterval(timestamp / 1000))
+            case .none:
+                break
+            }
         }
         
         var inviterProxy: RoomMemberProxyProtocol?
@@ -268,11 +292,13 @@ class RoomSummaryProvider: RoomSummaryProviderProtocol {
                            joinRequestType: joinRequestType,
                            name: roomInfo.displayName ?? roomInfo.id,
                            isDirect: roomInfo.isDirect,
+                           isSpace: roomInfo.isSpace,
                            avatarURL: roomInfo.avatarUrl.flatMap(URL.init(string:)),
                            heroes: roomInfo.heroes.map(UserProfileProxy.init),
                            activeMembersCount: UInt(roomInfo.activeMembersCount),
                            lastMessage: attributedLastMessage,
                            lastMessageDate: lastMessageDate,
+                           lastMessageState: lastMessageState,
                            unreadMessagesCount: UInt(roomInfo.numUnreadMessages),
                            unreadMentionsCount: UInt(roomInfo.numUnreadMentions),
                            unreadNotificationsCount: UInt(roomInfo.numUnreadNotifications),
@@ -281,7 +307,8 @@ class RoomSummaryProvider: RoomSummaryProviderProtocol {
                            alternativeAliases: .init(roomInfo.alternativeAliases),
                            hasOngoingCall: roomInfo.hasRoomCall,
                            isMarkedUnread: roomInfo.isMarkedUnread,
-                           isFavourite: roomInfo.isFavourite)
+                           isFavourite: roomInfo.isFavourite,
+                           isTombstoned: roomInfo.successorRoom != nil)
     }
     
     private func buildDiff(from diff: RoomListEntriesUpdate, on rooms: [RoomSummary]) -> CollectionDifference<RoomSummary>? {

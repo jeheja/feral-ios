@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -40,7 +41,8 @@ class HomeScreenViewModel: HomeScreenViewModelType, HomeScreenViewModelProtocol 
         
         roomSummaryProvider = userSession.clientProxy.roomSummaryProvider
         
-        super.init(initialViewState: .init(userID: userSession.clientProxy.userID, isNewBloomEnabled: appSettings.isNewBloomEnabled),
+        super.init(initialViewState: .init(userID: userSession.clientProxy.userID,
+                                           bindings: .init(filtersState: .init(appSettings: appSettings))),
                    mediaProvider: userSession.mediaProvider)
         
         userSession.clientProxy.userAvatarURLPublisher
@@ -104,6 +106,12 @@ class HomeScreenViewModel: HomeScreenViewModelType, HomeScreenViewModelProtocol 
             }
             .store(in: &cancellables)
         
+        appSettings.$hasSeenNewSoundBanner
+            .sink { [weak self] hasSeenNewSoundBanner in
+                self?.state.shouldShowNewSoundBanner = !hasSeenNewSoundBanner
+            }
+            .store(in: &cancellables)
+        
         userSession.clientProxy.hideInviteAvatarsPublisher
             .removeDuplicates()
             .receive(on: DispatchQueue.main)
@@ -133,10 +141,6 @@ class HomeScreenViewModel: HomeScreenViewModelType, HomeScreenViewModelProtocol 
         setupRoomListSubscriptions()
         
         updateRooms()
-        
-        Task {
-            await checkSlidingSyncMigration()
-        }
     }
     
     // MARK: - Public
@@ -163,6 +167,8 @@ class HomeScreenViewModel: HomeScreenViewModelType, HomeScreenViewModelProtocol 
             actionsSubject.send(.presentEncryptionResetScreen)
         case .skipRecoveryKeyConfirmation:
             state.securityBannerMode = .dismissed
+        case .dismissNewSoundBanner:
+            appSettings.hasSeenNewSoundBanner = true
         case .updateVisibleItemRange(let range):
             roomSummaryProvider?.updateVisibleRange(range)
         case .startChat:
@@ -318,24 +324,6 @@ class HomeScreenViewModel: HomeScreenViewModelType, HomeScreenViewModelProtocol 
         state.rooms = rooms
     }
     
-    /// Check whether we can inform the user about potential migrations
-    /// or have him logout as his proxy is no longer available
-    private func checkSlidingSyncMigration() async {
-        guard userSession.clientProxy.needsSlidingSyncMigration else {
-            return
-        }
-        
-        // The proxy is no longer supported so a logout is needed.
-        // Delay setting the alert otherwise it automatically gets dismissed. Same as the crashed last run one
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            self.state.bindings.alertInfo = AlertInfo(id: UUID(),
-                                                      title: L10n.bannerMigrateToNativeSlidingSyncAppForceLogoutTitle(InfoPlistReader.main.bundleDisplayName),
-                                                      primaryButton: .init(title: L10n.bannerMigrateToNativeSlidingSyncAction) { [weak self] in
-                                                          self?.actionsSubject.send(.logoutWithoutConfirmation)
-                                                      })
-        }
-    }
-    
     private func markRoomAsFavourite(_ roomID: String, isFavourite: Bool) async {
         guard case let .joined(roomProxy) = await userSession.clientProxy.roomForIdentifier(roomID) else {
             MXLog.error("Failed retrieving room for identifier: \(roomID)")
@@ -364,15 +352,39 @@ class HomeScreenViewModel: HomeScreenViewModelType, HomeScreenViewModelProtocol 
                 return
             }
             
-            if roomProxy.infoPublisher.value.isPublic {
-                state.bindings.leaveRoomAlertItem = LeaveRoomAlertItem(roomID: roomID, isDM: roomProxy.isDirectOneToOneRoom, state: .public)
-            } else {
-                state.bindings.leaveRoomAlertItem = if roomProxy.infoPublisher.value.joinedMembersCount > 1 {
-                    LeaveRoomAlertItem(roomID: roomID, isDM: roomProxy.isDirectOneToOneRoom, state: .private)
-                } else {
-                    LeaveRoomAlertItem(roomID: roomID, isDM: roomProxy.isDirectOneToOneRoom, state: .empty)
+            guard roomProxy.infoPublisher.value.joinedMembersCount > 1 else {
+                state.bindings.leaveRoomAlertItem = LeaveRoomAlertItem(roomID: roomID,
+                                                                       isDM: roomProxy.isDirectOneToOneRoom,
+                                                                       state: roomProxy.infoPublisher.value.isPrivate ?? true ? .empty : .public)
+                return
+            }
+            
+            if !roomProxy.isDirectOneToOneRoom {
+                if case let .success(ownMember) = await roomProxy.getMember(userID: roomProxy.ownUserID),
+                   ownMember.role.isOwner {
+                    await roomProxy.updateMembers()
+                    var isLastOwner = true
+                    for member in roomProxy.membersPublisher.value where member.userID != roomProxy.ownUserID && member.membership == .join {
+                        if member.role.isOwner {
+                            isLastOwner = false
+                            break
+                        }
+                    }
+                    
+                    if isLastOwner {
+                        state.bindings.alertInfo = .init(id: UUID(),
+                                                         title: L10n.leaveRoomAlertSelectNewOwnerTitle,
+                                                         message: L10n.leaveRoomAlertSelectNewOwnerSubtitle,
+                                                         primaryButton: .init(title: L10n.actionCancel, role: .cancel, action: nil),
+                                                         secondaryButton: .init(title: L10n.leaveRoomAlertSelectNewOwnerAction, role: .destructive) { [weak self] in
+                                                             self?.actionsSubject.send(.transferOwnership(roomIdentifier: roomID))
+                                                         })
+                        return
+                    }
                 }
             }
+            
+            state.bindings.leaveRoomAlertItem = LeaveRoomAlertItem(roomID: roomID, isDM: roomProxy.isDirectOneToOneRoom, state: roomProxy.infoPublisher.value.isPrivate ?? true ? .private : .public)
         }
     }
     
@@ -411,14 +423,37 @@ class HomeScreenViewModel: HomeScreenViewModelType, HomeScreenViewModelProtocol 
         
         switch await userSession.clientProxy.joinRoom(roomID, via: []) {
         case .success:
-            actionsSubject.send(.presentRoom(roomIdentifier: roomID))
-            analyticsService.trackJoinedRoom(isDM: roomProxy.info.isDirect,
-                                             isSpace: roomProxy.info.isSpace,
-                                             activeMemberCount: UInt(roomProxy.info.activeMembersCount))
-            appSettings.seenInvites.remove(roomID)
-        case .failure:
-            displayError()
+            await finishAcceptInvite(roomProxy: roomProxy)
+        case .failure(let error):
+            switch error {
+            case .invalidInvite:
+                displayError(title: L10n.dialogTitleError, message: L10n.errorInvalidInvite)
+            default:
+                displayError()
+            }
         }
+    }
+    
+    private func finishAcceptInvite(roomProxy: InvitedRoomProxyProtocol) async {
+        if roomProxy.info.isSpace {
+            let spaceService = userSession.clientProxy.spaceService
+            
+            switch await spaceService.spaceRoomList(spaceID: roomProxy.id) {
+            case .success(let spaceRoomListProxy):
+                actionsSubject.send(.presentSpace(spaceRoomListProxy))
+            case .failure(let error):
+                MXLog.error("Failed to get the space room list after accepting invite: \(error)")
+                displayError()
+                return
+            }
+        } else {
+            actionsSubject.send(.presentRoom(roomIdentifier: roomProxy.id))
+        }
+        
+        analyticsService.trackJoinedRoom(isDM: roomProxy.info.isDirect,
+                                         isSpace: roomProxy.info.isSpace,
+                                         activeMemberCount: UInt(roomProxy.info.activeMembersCount))
+        appSettings.seenInvites.remove(roomProxy.id)
     }
     
     private func showDeclineInviteConfirmationAlert(roomID: String) async {
@@ -474,9 +509,9 @@ class HomeScreenViewModel: HomeScreenViewModelType, HomeScreenViewModelProtocol 
         }
     }
     
-    private func displayError() {
+    private func displayError(title: String? = nil, message: String? = nil) {
         state.bindings.alertInfo = .init(id: UUID(),
-                                         title: L10n.commonError,
-                                         message: L10n.errorUnknown)
+                                         title: title ?? L10n.commonError,
+                                         message: message ?? L10n.errorUnknown)
     }
 }

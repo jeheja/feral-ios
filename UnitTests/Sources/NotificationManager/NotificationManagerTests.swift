@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -160,7 +161,7 @@ final class NotificationManagerTests: XCTestCase {
         notificationCenter.authorizationStatusReturnValue = .authorized
         notificationManager.delegate = self
         
-        notificationManager.setUserSession(UserSessionMock(.init(clientProxy: ClientProxyMock(.init()))))
+        notificationManager.setUserSession(UserSessionMock(.init()))
         try await Task.sleep(for: .seconds(1))
         
         XCTAssertFalse(authorizationStatusWasGranted)
@@ -177,7 +178,7 @@ final class NotificationManagerTests: XCTestCase {
             expectation.fulfill()
         }
         
-        notificationManager.setUserSession(UserSessionMock(.init(clientProxy: ClientProxyMock(.init()))))
+        notificationManager.setUserSession(UserSessionMock(.init()))
         await fulfillment(of: [expectation])
         
         XCTAssertTrue(authorizationStatusWasGranted)

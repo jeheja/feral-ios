@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -9,7 +10,7 @@ import Compound
 import SwiftUI
 
 struct BlockedUsersScreen: View {
-    @ObservedObject var context: BlockedUsersScreenViewModel.Context
+    @Bindable var context: BlockedUsersScreenViewModel.Context
     
     var body: some View {
         content
@@ -56,8 +57,7 @@ struct BlockedUsersScreen: View {
 
 struct BlockedUsersScreen_Previews: PreviewProvider, TestablePreview {
     static let viewModel = BlockedUsersScreenViewModel(hideProfiles: true,
-                                                       clientProxy: ClientProxyMock(.init(userID: RoomMemberProxyMock.mockMe.userID)),
-                                                       mediaProvider: MediaProviderMock(configuration: .init()),
+                                                       userSession: UserSessionMock(.init(clientProxy: ClientProxyMock(.init(userID: RoomMemberProxyMock.mockMe.userID)))),
                                                        userIndicatorController: UserIndicatorControllerMock())
     
     static var previews: some View {

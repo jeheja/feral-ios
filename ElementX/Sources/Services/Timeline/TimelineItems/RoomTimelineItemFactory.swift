@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -40,13 +41,15 @@ struct RoomTimelineItemFactory: RoomTimelineItemFactoryProtocol {
                 return buildRedactedTimelineItem(eventItemProxy, messageLikeContent, isOutgoing)
             case .unableToDecrypt(let encryptedMessage):
                 return buildEncryptedTimelineItem(eventItemProxy, messageLikeContent, encryptedMessage, isOutgoing)
+            case .other:
+                return nil // We shouldn't receive these without asking for custom event types.
             }
         case .failedToParseMessageLike(let eventType, let error):
             return buildUnsupportedTimelineItem(eventItemProxy, eventType, error, isOutgoing)
         case .failedToParseState(let eventType, _, let error):
             return buildUnsupportedTimelineItem(eventItemProxy, eventType, error, isOutgoing)
         case .state(_, let content):
-            if isDM, content == .roomCreate {
+            if isDM, case .roomCreate = content {
                 return nil
             }
             return buildStateTimelineItem(for: eventItemProxy, state: content, isOutgoing: isOutgoing)
@@ -64,7 +67,7 @@ struct RoomTimelineItemFactory: RoomTimelineItemFactoryProtocol {
                                                        isOutgoing: isOutgoing)
         case .callInvite:
             return buildCallInviteTimelineItem(for: eventItemProxy)
-        case .callNotify:
+        case .rtcNotification:
             return buildCallNotificationTimelineItem(for: eventItemProxy)
         }
     }
@@ -96,6 +99,8 @@ struct RoomTimelineItemFactory: RoomTimelineItemFactoryProtocol {
             }
         case .location(let locationMessageContent):
             return buildLocationTimelineItem(for: eventItemProxy, messageLikeContent, messageContent, locationMessageContent, isOutgoing)
+        case .gallery(let galleryMessageContent):
+            return buildGalleryTimelineItem(for: eventItemProxy, messageLikeContent, messageContent, galleryMessageContent, isOutgoing)
         case .other:
             return nil
         }
@@ -302,6 +307,29 @@ struct RoomTimelineItemFactory: RoomTimelineItemFactoryProtocol {
                                                    deliveryStatus: eventItemProxy.deliveryStatus,
                                                    orderedReadReceipts: buildOrderedReadReceipts(eventItemProxy.readReceipts),
                                                    encryptionAuthenticity: buildEncryptionAuthenticity(eventItemProxy.shieldState)))
+    }
+    
+    private func buildGalleryTimelineItem(for eventItemProxy: EventTimelineItemProxy,
+                                          _ messageLikeContent: MsgLikeContent,
+                                          _ messageContent: MessageContent,
+                                          _ galleryMessageContent: GalleryMessageContent,
+                                          _ isOutgoing: Bool) -> RoomTimelineItemProtocol {
+        TextRoomTimelineItem(id: eventItemProxy.id,
+                             timestamp: eventItemProxy.timestamp,
+                             isOutgoing: isOutgoing,
+                             isEditable: eventItemProxy.isEditable,
+                             canBeRepliedTo: eventItemProxy.canBeRepliedTo,
+                             shouldBoost: eventItemProxy.shouldBoost,
+                             sender: eventItemProxy.sender,
+                             content: .init(body: galleryMessageContent.body),
+                             properties: .init(replyDetails: buildTimelineItemReplyDetails(messageLikeContent.inReplyTo),
+                                               isThreaded: messageLikeContent.threadRoot != nil,
+                                               threadSummary: buildTimelineItemThreadSummary(messageLikeContent.threadSummary),
+                                               isEdited: messageContent.isEdited,
+                                               reactions: buildAggregatedReactions(messageLikeContent.reactions),
+                                               deliveryStatus: eventItemProxy.deliveryStatus,
+                                               orderedReadReceipts: buildOrderedReadReceipts(eventItemProxy.readReceipts),
+                                               encryptionAuthenticity: buildEncryptionAuthenticity(eventItemProxy.shieldState)))
     }
     
     private func buildStickerTimelineItem(_ eventItemProxy: EventTimelineItemProxy,
@@ -649,8 +677,8 @@ struct RoomTimelineItemFactory: RoomTimelineItemFactoryProtocol {
             return .notLoaded
         case .pending:
             return .loading
-        case .ready(let senderID, let senderProfile, let content):
-            let sender = buildTimelineItemSender(senderID: senderID, senderProfile: senderProfile)
+        case .ready(let content, let senderID, let senderProfile, _, _):
+            let sender = TimelineItemSender(senderID: senderID, senderProfile: senderProfile)
             
             let latestEventContent: TimelineEventContent = switch content {
             case .msgLike(let messageLikeContent):
@@ -674,7 +702,8 @@ struct RoomTimelineItemFactory: RoomTimelineItemFactoryProtocol {
             
             return .loaded(senderID: senderID,
                            sender: sender,
-                           latestEventContent: latestEventContent)
+                           latestEventContent: latestEventContent,
+                           numberOfReplies: Int(threadSummary.numReplies()))
             
         case .error(let message):
             return .error(message: message)
@@ -784,8 +813,8 @@ struct RoomTimelineItemFactory: RoomTimelineItemFactoryProtocol {
             return .init(details: .notLoaded(eventID: details.eventId()), isThreaded: isThreaded)
         case .pending:
             return .init(details: .loading(eventID: details.eventId()), isThreaded: isThreaded)
-        case let .ready(timelineItem, senderID, senderProfile):
-            let sender = buildTimelineItemSender(senderID: senderID, senderProfile: senderProfile)
+        case let .ready(timelineItem, senderID, senderProfile, _, _):
+            let sender = TimelineItemSender(senderID: senderID, senderProfile: senderProfile)
             
             let replyContent: TimelineEventContent
             
@@ -821,21 +850,6 @@ struct RoomTimelineItemFactory: RoomTimelineItemFactoryProtocol {
     
     // MARK: - Helpers
     
-    private func buildTimelineItemSender(senderID: String, senderProfile: ProfileDetails?) -> TimelineItemSender {
-        switch senderProfile {
-        case let .ready(displayName, isDisplayNameAmbiguous, avatarUrl):
-            return TimelineItemSender(id: senderID,
-                                      displayName: displayName,
-                                      isDisplayNameAmbiguous: isDisplayNameAmbiguous,
-                                      avatarURL: avatarUrl.flatMap(URL.init(string:)))
-        default:
-            return TimelineItemSender(id: senderID,
-                                      displayName: nil,
-                                      isDisplayNameAmbiguous: false,
-                                      avatarURL: nil)
-        }
-    }
-    
     private func buildMessageTimelineItemContent(messageType: MessageType?, senderID: String, senderDisplayName: String?) -> EventBasedMessageTimelineItemContentType {
         switch messageType {
         case .audio(let content):
@@ -858,20 +872,20 @@ struct RoomTimelineItemFactory: RoomTimelineItemFactoryProtocol {
             .video(buildVideoTimelineItemContent(content))
         case .location(let content):
             .location(buildLocationTimelineItemContent(content))
-        case .other, .none:
+        case .gallery(let content):
+            .text(.init(body: content.body))
+        case .other(_, let body):
+            .text(.init(body: body))
+        case .none:
             .text(.init(body: L10n.commonUnsupportedEvent))
         }
     }
 }
 
-private extension RepliedToEventDetails {
+private extension EmbeddedEventDetails {
     var isThreaded: Bool {
         switch self {
-        case .ready(let content, _, _):
-            guard case let .msgLike(messageLikeContent) = content else {
-                return false
-            }
-            
+        case .ready(.msgLike(let messageLikeContent), _, _, _, _):
             return messageLikeContent.threadRoot != nil
         default:
             return false

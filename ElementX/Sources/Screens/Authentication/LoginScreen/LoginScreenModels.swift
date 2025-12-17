@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -70,6 +71,8 @@ enum LoginScreenErrorType: Hashable {
     case invalidWellKnownAlert(String)
     /// An alert that allows the user to learn about sliding sync.
     case slidingSyncAlert
+    /// An alert that informs the user that Element Pro should be used for a particular server.
+    case elementProAlert
     /// An alert that informs the user that login failed due to a refresh token being returned.
     case refreshTokenAlert
     /// The response from the homeserver was unexpected.

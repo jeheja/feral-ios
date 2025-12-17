@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -9,12 +10,14 @@ import Combine
 import SwiftUI
 
 struct MediaUploadPreviewScreenCoordinatorParameters {
-    let userIndicatorController: UserIndicatorControllerProtocol
-    let roomProxy: JoinedRoomProxyProtocol
-    let mediaUploadingPreprocessor: MediaUploadingPreprocessor
+    let mediaURLs: [URL]
     let title: String?
-    let url: URL
+    let isRoomEncrypted: Bool
     let shouldShowCaptionWarning: Bool
+    let mediaUploadingPreprocessor: MediaUploadingPreprocessor
+    let timelineController: TimelineControllerProtocol
+    let clientProxy: ClientProxyProtocol
+    let userIndicatorController: UserIndicatorControllerProtocol
 }
 
 enum MediaUploadPreviewScreenCoordinatorAction {
@@ -31,12 +34,14 @@ final class MediaUploadPreviewScreenCoordinator: CoordinatorProtocol {
     }
     
     init(parameters: MediaUploadPreviewScreenCoordinatorParameters) {
-        viewModel = MediaUploadPreviewScreenViewModel(userIndicatorController: parameters.userIndicatorController,
-                                                      roomProxy: parameters.roomProxy,
-                                                      mediaUploadingPreprocessor: parameters.mediaUploadingPreprocessor,
+        viewModel = MediaUploadPreviewScreenViewModel(mediaURLs: parameters.mediaURLs,
                                                       title: parameters.title,
-                                                      url: parameters.url,
-                                                      shouldShowCaptionWarning: parameters.shouldShowCaptionWarning)
+                                                      isRoomEncrypted: parameters.isRoomEncrypted,
+                                                      shouldShowCaptionWarning: parameters.shouldShowCaptionWarning,
+                                                      mediaUploadingPreprocessor: parameters.mediaUploadingPreprocessor,
+                                                      timelineController: parameters.timelineController,
+                                                      clientProxy: parameters.clientProxy,
+                                                      userIndicatorController: parameters.userIndicatorController)
     }
     
     func start() {

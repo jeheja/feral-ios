@@ -1,7 +1,8 @@
 //
-// Copyright 2023, 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2023-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -37,25 +38,22 @@ final class PillAttachmentViewProvider: NSTextAttachmentViewProvider, NSSecureCo
 
         guard let textAttachment = textAttachment as? PillTextAttachment,
               let pillData = textAttachment.pillData else {
-            MXLog.failure("[PillAttachmentViewProvider]: attachment is missing data or not of expected class")
+            MXLog.failure("Attachment is missing data or not of expected class")
             return
         }
         
         let context: PillContext
-        let mediaProvider: MediaProviderProtocol?
         if ProcessInfo.isXcodePreview || ProcessInfo.isRunningTests {
             // The mock viewModel simulates the loading logic for testing purposes
             context = PillContext.mock(viewState: .mention(isOwnMention: false, displayText: "Alice"), delay: .seconds(2))
-            mediaProvider = MediaProviderMock(configuration: .init())
         } else if let timelineContext = delegate?.timelineContext {
             context = PillContext(timelineContext: timelineContext, data: pillData)
-            mediaProvider = timelineContext.mediaProvider
         } else {
-            MXLog.failure("[PillAttachmentViewProvider]: missing room context")
+            MXLog.failure("Missing room context")
             return
         }
         
-        let view = PillView(mediaProvider: mediaProvider, context: context) { [weak self] in
+        let view = PillView(context: context) { [weak self] in
             self?.delegate?.invalidateTextAttachmentsDisplay()
         }
         let controller = UIHostingController(rootView: view)

@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -9,7 +10,8 @@ import Compound
 import SwiftUI
 
 struct MediaEventsTimelineScreen: View {
-    @ObservedObject var context: MediaEventsTimelineScreenViewModel.Context
+    @Bindable var context: MediaEventsTimelineScreenViewModel.Context
+    @State private var sheetHeight = CGFloat.zero
     
     var body: some View {
         mainContent
@@ -24,6 +26,15 @@ struct MediaEventsTimelineScreen: View {
                 context.send(viewAction: .changedScreenMode)
             }
             .timelineMediaPreview(viewModel: $context.mediaPreviewViewModel)
+            .sheet(item: $context.mediaPreviewSheetViewModel) { sheet in
+                if case let .media(media) = sheet.state.currentItem {
+                    TimelineMediaPreviewDetailsView(item: media,
+                                                    context: sheet.context,
+                                                    preferredColorScheme: nil,
+                                                    sheetHeight: $sheetHeight)
+                        .presentationDetents([.height(sheetHeight)])
+                }
+            }
     }
     
     // The scale effects do the following:
@@ -37,20 +48,28 @@ struct MediaEventsTimelineScreen: View {
         if context.viewState.shouldShowEmptyState {
             emptyState
         } else {
-            ScrollView {
-                Group {
-                    switch context.viewState.bindings.screenMode {
-                    case .media:
-                        mediaContent
-                    case .files:
-                        filesContent
-                    }
-                    
-                    header
-                }
-            }
-            .scaleEffect(.init(width: 1, height: -1))
+            scrollView
+                // Remove the glass effect of iOS 26+
+                // A flipped table view will always trigger it
+                // since the nav bar thinks is always at the bottom.
+                .backportScrollEdgeEffectHidden()
         }
+    }
+    
+    private var scrollView: some View {
+        ScrollView {
+            Group {
+                switch context.viewState.bindings.screenMode {
+                case .media:
+                    mediaContent
+                case .files:
+                    filesContent
+                }
+                
+                header
+            }
+        }
+        .scaleEffect(.init(width: 1, height: -1))
     }
     
     @ViewBuilder
@@ -65,6 +84,9 @@ struct MediaEventsTimelineScreen: View {
                         } label: {
                             viewForTimelineItem(item)
                                 .scaleEffect(CGSize(width: -1, height: -1))
+                        }
+                        .accessibleLongPress(named: L10n.actionOpenContextMenu) {
+                            context.send(viewAction: .longPressedItem(item: item))
                         }
                     }
                 } footer: {
@@ -85,6 +107,7 @@ struct MediaEventsTimelineScreen: View {
                     ForEach(group.items) { item in
                         VStack(spacing: 20) {
                             Divider()
+                                .accessibilityHidden(true)
                             
                             Button {
                                 tappedItem(item)
@@ -92,7 +115,14 @@ struct MediaEventsTimelineScreen: View {
                                 viewForTimelineItem(item)
                                     .scaleEffect(CGSize(width: 1, height: -1))
                             }
+                            .accessibilityRepresentation {
+                                viewForTimelineItem(item)
+                            }
+                            .accessibleLongPress(named: L10n.actionOpenContextMenu) {
+                                context.send(viewAction: .longPressedItem(item: item))
+                            }
                         }
+                        .accessibilityElement(children: .combine)
                         .padding(.horizontal, 16)
                     }
                 } footer: {
@@ -194,27 +224,43 @@ struct MediaEventsTimelineScreen: View {
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            Picker("", selection: $context.screenMode) {
-                Text(L10n.screenMediaBrowserListModeMedia)
-                    .padding()
-                    .tag(MediaEventsTimelineScreenMode.media)
-                Text(L10n.screenMediaBrowserListModeFiles)
-                    .padding()
-                    .tag(MediaEventsTimelineScreenMode.files)
+            if #available(iOS 26, *) {
+                screenModePicker
+            } else {
+                screenModePicker
+                    .frame(idealWidth: .greatestFiniteMagnitude)
             }
-            .pickerStyle(.segmented)
-            .frame(idealWidth: .greatestFiniteMagnitude)
         }
         
-        ToolbarItem(placement: .primaryAction) {
-            // Reserve the space trailing space to match the back button.
-            CompoundIcon(\.search).hidden()
+        if #available(iOS 26, *) {
+            ToolbarSpacer()
+        } else {
+            ToolbarItem(placement: .primaryAction) {
+                // Reserve the space trailing space to match the back button.
+                CompoundIcon(\.search).hidden()
+            }
         }
+    }
+    
+    private var screenModePicker: some View {
+        Picker("", selection: $context.screenMode) {
+            Text(L10n.screenMediaBrowserListModeMedia)
+                .padding()
+                .tag(MediaEventsTimelineScreenMode.media)
+            Text(L10n.screenMediaBrowserListModeFiles)
+                .padding()
+                .tag(MediaEventsTimelineScreenMode.files)
+        }
+        .pickerStyle(.segmented)
     }
     
     func tappedItem(_ item: RoomTimelineItemViewState) {
         context.send(viewAction: .tappedItem(item: item))
     }
+}
+
+extension TimelineMediaPreviewViewModel: Identifiable {
+    var id: UUID { instanceID }
 }
 
 // MARK: - Previews
@@ -266,15 +312,14 @@ struct MediaEventsTimelineScreen_Previews: PreviewProvider, TestablePreview {
         
         return TimelineViewModel(roomProxy: JoinedRoomProxyMock(.init(name: "Preview room")),
                                  timelineController: timelineController,
-                                 mediaProvider: MediaProviderMock(configuration: .init()),
+                                 userSession: UserSessionMock(.init()),
                                  mediaPlayerProvider: MediaPlayerProviderMock(),
-                                 voiceMessageMediaManager: VoiceMessageMediaManagerMock(),
                                  userIndicatorController: UserIndicatorControllerMock(),
                                  appMediator: AppMediatorMock.default,
                                  appSettings: ServiceLocator.shared.settings,
                                  analyticsService: ServiceLocator.shared.analytics,
                                  emojiProvider: EmojiProvider(appSettings: ServiceLocator.shared.settings),
-                                 timelineControllerFactory: TimelineControllerFactoryMock(.init()),
-                                 clientProxy: ClientProxyMock(.init()))
+                                 linkMetadataProvider: LinkMetadataProvider(),
+                                 timelineControllerFactory: TimelineControllerFactoryMock(.init()))
     }
 }

@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -9,7 +10,7 @@ import Compound
 import SwiftUI
 
 struct UserProfileScreen: View {
-    @ObservedObject var context: UserProfileScreenViewModel.Context
+    @Bindable var context: UserProfileScreenViewModel.Context
     
     var body: some View {
         Form {
@@ -103,28 +104,22 @@ struct UserProfileScreen_Previews: PreviewProvider, TestablePreview {
     
     static var previews: some View {
         UserProfileScreen(context: verifiedUserViewModel.context)
-            .snapshotPreferences(expect: verifiedUserViewModel.context.$viewState.map { state in
-                state.isVerified != nil
-            })
+            .snapshotPreferences(expect: verifiedUserViewModel.context.observe(\.viewState.isVerified).map { $0 != nil })
             .previewDisplayName("Verified User")
         
         UserProfileScreen(context: otherUserViewModel.context)
-            .snapshotPreferences(expect: otherUserViewModel.context.$viewState.map { state in
-                state.isVerified != nil
-            })
+            .snapshotPreferences(expect: otherUserViewModel.context.observe(\.viewState.isVerified).map { $0 != nil })
             .previewDisplayName("Other User")
         
         UserProfileScreen(context: accountOwnerViewModel.context)
-            .snapshotPreferences(expect: accountOwnerViewModel.context.$viewState.map { state in
-                state.isVerified != nil
-            })
+            .snapshotPreferences(expect: accountOwnerViewModel.context.observe(\.viewState.isVerified).map { $0 != nil })
             .previewDisplayName("Account Owner")
     }
     
     static func makeViewModel(userID: String) -> UserProfileScreenViewModel {
         let clientProxyMock = ClientProxyMock(.init())
         
-        clientProxyMock.userIdentityForClosure = { userID in
+        clientProxyMock.userIdentityForFallBackToServerClosure = { userID, _ in
             let identity = switch userID {
             case RoomMemberProxyMock.mockDan.userID:
                 UserIdentityProxyMock(configuration: .init(verificationState: .verified))
@@ -141,8 +136,7 @@ struct UserProfileScreen_Previews: PreviewProvider, TestablePreview {
         
         return UserProfileScreenViewModel(userID: userID,
                                           isPresentedModally: false,
-                                          clientProxy: clientProxyMock,
-                                          mediaProvider: MediaProviderMock(configuration: .init()),
+                                          userSession: UserSessionMock(.init(clientProxy: clientProxyMock)),
                                           userIndicatorController: ServiceLocator.shared.userIndicatorController,
                                           analytics: ServiceLocator.shared.analytics)
     }

@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -15,14 +16,18 @@ struct BugReport: Equatable {
     let ed25519: String?
     let curve25519: String?
     let text: String
-    let includeLogs: Bool
+    let logFiles: [URL]?
     let canContact: Bool
     var githubLabels: [String]
     let files: [URL]
 }
 
 struct SubmitBugReportResponse: Decodable {
-    var reportUrl: String
+    var reportURL: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case reportURL = "report_url"
+    }
 }
 
 enum BugReportServiceError: LocalizedError {

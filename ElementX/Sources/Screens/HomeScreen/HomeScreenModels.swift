@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -9,12 +10,14 @@ import Combine
 import Foundation
 import UIKit
 
-enum HomeScreenViewModelAction: Equatable {
+enum HomeScreenViewModelAction {
     case presentRoom(roomIdentifier: String)
     case presentRoomDetails(roomIdentifier: String)
     case presentReportRoom(roomIdentifier: String)
     case presentDeclineAndBlock(userID: String, roomID: String)
+    case presentSpace(SpaceRoomListProxyProtocol)
     case roomLeft(roomIdentifier: String)
+    case transferOwnership(roomIdentifier: String)
     case presentSecureBackupSettings
     case presentRecoveryKeyScreen
     case presentEncryptionResetScreen
@@ -22,7 +25,6 @@ enum HomeScreenViewModelAction: Equatable {
     case presentFeedbackScreen
     case presentStartChatScreen
     case presentGlobalSearch
-    case logoutWithoutConfirmation
     case logout
 }
 
@@ -38,6 +40,7 @@ enum HomeScreenViewAction {
     case confirmRecoveryKey
     case resetEncryption
     case skipRecoveryKeyConfirmation
+    case dismissNewSoundBanner
     case updateVisibleItemRange(Range<Int>)
     case globalSearch
     case markRoomAsUnread(roomIdentifier: String)
@@ -91,6 +94,7 @@ struct HomeScreenViewState: BindableState {
     var userAvatarURL: URL?
     
     var securityBannerMode = HomeScreenSecurityBannerMode.none
+    var shouldShowNewSoundBanner = false
     
     var requiresExtraAccountSetup = false
         
@@ -105,10 +109,6 @@ struct HomeScreenViewState: BindableState {
     
     var reportRoomEnabled = false
     
-    // Intentionally not mutable so that we don't have to reset the navigation bar's
-    // appearance whenever the feature flag is toggled (requires a restart).
-    let isNewBloomEnabled: Bool
-    
     var visibleRooms: [HomeScreenRoom] {
         if roomListMode == .skeletons {
             return placeholderRooms
@@ -117,7 +117,7 @@ struct HomeScreenViewState: BindableState {
         return rooms
     }
         
-    var bindings = HomeScreenViewStateBindings()
+    var bindings: HomeScreenViewStateBindings
     
     var placeholderRooms: [HomeScreenRoom] {
         (1...10).map { _ in
@@ -137,10 +137,14 @@ struct HomeScreenViewState: BindableState {
     var shouldShowFilters: Bool {
         !bindings.isSearchFieldFocused && roomListMode == .rooms
     }
+    
+    var shouldShowBanner: Bool {
+        securityBannerMode.isShown || shouldShowNewSoundBanner
+    }
 }
 
 struct HomeScreenViewStateBindings {
-    var filtersState = RoomListFiltersState()
+    var filtersState: RoomListFiltersState
     var searchQuery = ""
     var isSearchFieldFocused = false
     
@@ -193,9 +197,24 @@ struct HomeScreenRoom: Identifiable, Equatable {
     
     let lastMessage: AttributedString?
     
+    enum LastMessageState { case sending, failed }
+    let lastMessageState: LastMessageState?
+    
     let avatar: RoomAvatar
         
     let canonicalAlias: String?
+    
+    let isTombstoned: Bool
+    
+    var displayedLastMessage: AttributedString? {
+        if isTombstoned {
+            AttributedString(L10n.screenRoomlistTombstonedRoomDescription)
+        } else if lastMessageState == .failed {
+            AttributedString(L10n.commonMessageFailedToSend)
+        } else {
+            lastMessage
+        }
+    }
     
     static func placeholder() -> HomeScreenRoom {
         HomeScreenRoom(id: UUID().uuidString,
@@ -208,8 +227,10 @@ struct HomeScreenRoom: Identifiable, Equatable {
                        isFavourite: false,
                        timestamp: "Now",
                        lastMessage: placeholderLastMessage,
+                       lastMessageState: nil,
                        avatar: .room(id: "", name: "", avatarURL: nil),
-                       canonicalAlias: nil)
+                       canonicalAlias: nil,
+                       isTombstoned: false)
     }
 }
 
@@ -245,7 +266,23 @@ extension HomeScreenRoom {
                   isFavourite: summary.isFavourite,
                   timestamp: summary.lastMessageDate?.formattedMinimal(),
                   lastMessage: summary.lastMessage,
+                  lastMessageState: summary.homeScreenLastMessageState,
                   avatar: summary.avatar,
-                  canonicalAlias: summary.canonicalAlias)
+                  canonicalAlias: summary.canonicalAlias,
+                  isTombstoned: summary.isTombstoned)
+    }
+}
+
+private extension RoomSummary {
+    var homeScreenLastMessageState: HomeScreenRoom.LastMessageState? {
+        if isTombstoned {
+            nil
+        } else {
+            switch lastMessageState {
+            case .sending: .sending
+            case .failed: .failed
+            case .none: .none
+            }
+        }
     }
 }

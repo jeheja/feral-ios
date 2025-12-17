@@ -1,7 +1,8 @@
 //
-// Copyright 2023, 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2023-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -41,7 +42,7 @@ private extension FormatItem {
     var foregroundColor: Color {
         switch state {
         case .reversed:
-            return .compound.iconSuccessPrimary
+            return .compound.iconAccentPrimary
         case .enabled:
             return .compound.iconSecondary
         case .disabled:
@@ -52,7 +53,7 @@ private extension FormatItem {
     var backgroundColor: Color {
         switch state {
         case .reversed:
-            return .compound._bgAccentSelected
+            return .compound.bgAccentSelected
         case .enabled, .disabled:
             return .compound.bgCanvasDefault
         }

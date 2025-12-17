@@ -1,7 +1,8 @@
 //
-// Copyright 2023, 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2023-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -192,11 +193,12 @@ class VoiceMessageRecorderTests: XCTestCase {
     }
     
     func testSendVoiceMessage_NoRecordingFile() async throws {
-        let roomProxy = JoinedRoomProxyMock()
-
+        let timelineController = MockTimelineController()
+        
         // If there is no recording file, an error is expected
         audioRecorder.audioFileURL = nil
-        guard case .failure(.missingRecordingFile) = await voiceMessageRecorder.sendVoiceMessage(inRoom: roomProxy, audioConverter: audioConverter) else {
+        guard case .failure(.missingRecordingFile) = await voiceMessageRecorder.sendVoiceMessage(timelineController: timelineController,
+                                                                                                 audioConverter: audioConverter) else {
             XCTFail("An error is expected")
             return
         }
@@ -207,8 +209,9 @@ class VoiceMessageRecorderTests: XCTestCase {
         // If the converter returns an error
         audioConverter.convertToOpusOggSourceURLDestinationURLThrowableError = AudioConverterError.conversionFailed(nil)
         
-        let roomProxy = JoinedRoomProxyMock()
-        guard case .failure(.failedSendingVoiceMessage) = await voiceMessageRecorder.sendVoiceMessage(inRoom: roomProxy, audioConverter: audioConverter) else {
+        let timelineController = MockTimelineController()
+        guard case .failure(.failedSendingVoiceMessage) = await voiceMessageRecorder.sendVoiceMessage(timelineController: timelineController,
+                                                                                                      audioConverter: audioConverter) else {
             XCTFail("An error is expected")
             return
         }
@@ -225,10 +228,10 @@ class VoiceMessageRecorderTests: XCTestCase {
         }
         
         let timelineProxy = TimelineProxyMock()
-        let roomProxy = JoinedRoomProxyMock()
-        roomProxy.timeline = timelineProxy
+        let timelineController = MockTimelineController(timelineProxy: timelineProxy)
         timelineProxy.sendVoiceMessageUrlAudioInfoWaveformRequestHandleReturnValue = .failure(.sdkError(SDKError.generic))
-        guard case .failure(.failedSendingVoiceMessage) = await voiceMessageRecorder.sendVoiceMessage(inRoom: roomProxy, audioConverter: audioConverter) else {
+        guard case .failure(.failedSendingVoiceMessage) = await voiceMessageRecorder.sendVoiceMessage(timelineController: timelineController,
+                                                                                                      audioConverter: audioConverter) else {
             XCTFail("An error is expected")
             return
         }
@@ -246,10 +249,10 @@ class VoiceMessageRecorderTests: XCTestCase {
         }
         
         let timelineProxy = TimelineProxyMock()
-        let roomProxy = JoinedRoomProxyMock()
-        roomProxy.timeline = timelineProxy
+        let timelineController = MockTimelineController(timelineProxy: timelineProxy)
         timelineProxy.sendVoiceMessageUrlAudioInfoWaveformRequestHandleReturnValue = .failure(.sdkError(SDKError.generic))
-        guard case .failure(.failedSendingVoiceMessage) = await voiceMessageRecorder.sendVoiceMessage(inRoom: roomProxy, audioConverter: audioConverter) else {
+        guard case .failure(.failedSendingVoiceMessage) = await voiceMessageRecorder.sendVoiceMessage(timelineController: timelineController,
+                                                                                                      audioConverter: audioConverter) else {
             XCTFail("An error is expected")
             return
         }
@@ -269,10 +272,10 @@ class VoiceMessageRecorderTests: XCTestCase {
         
         // If the media upload fails
         let timelineProxy = TimelineProxyMock()
-        let roomProxy = JoinedRoomProxyMock()
-        roomProxy.timeline = timelineProxy
+        let timelineController = MockTimelineController(timelineProxy: timelineProxy)
         timelineProxy.sendVoiceMessageUrlAudioInfoWaveformRequestHandleReturnValue = .failure(.sdkError(SDKError.generic))
-        guard case .failure(.failedSendingVoiceMessage) = await voiceMessageRecorder.sendVoiceMessage(inRoom: roomProxy, audioConverter: audioConverter) else {
+        guard case .failure(.failedSendingVoiceMessage) = await voiceMessageRecorder.sendVoiceMessage(timelineController: timelineController,
+                                                                                                      audioConverter: audioConverter) else {
             XCTFail("An error is expected")
             return
         }
@@ -285,8 +288,7 @@ class VoiceMessageRecorderTests: XCTestCase {
         }
         
         let timelineProxy = TimelineProxyMock()
-        let roomProxy = JoinedRoomProxyMock()
-        roomProxy.timeline = timelineProxy
+        let timelineController = MockTimelineController(timelineProxy: timelineProxy)
         audioRecorder.currentTime = 42
         audioRecorder.audioFileURL = imageFileURL
         _ = await voiceMessageRecorder.startRecording()
@@ -317,7 +319,7 @@ class VoiceMessageRecorderTests: XCTestCase {
             return .success(())
         }
         
-        guard case .success = await voiceMessageRecorder.sendVoiceMessage(inRoom: roomProxy, audioConverter: audioConverter) else {
+        guard case .success = await voiceMessageRecorder.sendVoiceMessage(timelineController: timelineController, audioConverter: audioConverter) else {
             XCTFail("A success is expected")
             return
         }

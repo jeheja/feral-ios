@@ -1,7 +1,8 @@
 //
+// Copyright 2025 Element Creations Ltd.
 // Copyright 2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -24,11 +25,21 @@ extension RoomFlowCoordinator {
     enum PresentationAction: Hashable {
         case eventFocus(FocusEvent)
         case share(ShareExtensionPayload)
+        case thread(rootEventID: String, focusEvent: FocusEvent?)
         
         var focusedEvent: FocusEvent? {
             switch self {
             case .eventFocus(let focusEvent):
                 focusEvent
+            case .thread(let rootEventID, let focusEvent):
+                // Since this enum is for the room and not the threaded timeline,
+                // we will focus the thread root event id, and not the event id itself
+                // which will be done at the thread presentation level
+                if let focusEvent {
+                    .init(eventID: rootEventID, shouldSetPin: focusEvent.shouldSetPin)
+                } else {
+                    nil
+                }
             default:
                 nil
             }
@@ -48,17 +59,14 @@ extension RoomFlowCoordinator {
         case initial
         case joinRoomScreen
         case room
-        case thread(itemID: TimelineItemIdentifier)
+        case thread(threadRootEventID: String, previousState: State)
         case roomDetails(isRoot: Bool)
         case roomDetailsEditScreen
         case notificationSettings
         case globalNotificationSettings
-        case roomMembersList
-        case roomMemberDetails(userID: String, previousState: State)
-        case userProfile(userID: String, previousState: State)
         case inviteUsersScreen(previousState: State)
-        case mediaUploadPicker(source: MediaPickerScreenSource, previousState: State)
-        case mediaUploadPreview(fileURL: URL, previousState: State)
+        case mediaUploadPicker(mode: MediaPickerScreenMode, previousState: State)
+        case mediaUploadPreview(mediaURLs: [URL], previousState: State)
         case emojiPicker(itemID: TimelineItemIdentifier, selectedEmojis: Set<String>, previousState: State)
         case mapNavigator(previousState: State)
         case messageForwarding(forwardingItem: MessageForwardingItem, previousState: State)
@@ -72,6 +80,7 @@ extension RoomFlowCoordinator {
         case knockRequestsList(previousState: State)
         case mediaEventsTimeline(previousState: State)
         case securityAndPrivacy(previousState: State)
+        case manageAuthorizedSpacesScreen(previousState: State)
         case reportRoom(previousState: State)
         case declineAndBlockScreen
         
@@ -79,21 +88,33 @@ extension RoomFlowCoordinator {
         case presentingChild(childRoomID: String, previousState: State)
         /// The flow is complete and is handing control of the stack back to its parent.
         case complete
+        
+        /// A space flow is in progress
+        case spaceFlow(previousState: State)
+        /// A members flow is in progress
+        case membersFlow(previousState: State)
     }
     
     struct EventUserInfo {
         let animated: Bool
+        var timelineController: TimelineControllerProtocol?
+        var spaceRoomListProxy: SpaceRoomListProxyProtocol?
+        var authorizedSpacesSelection: AuthorizedSpacesSelection?
     }
 
     enum Event: EventType {
         case presentJoinRoomScreen(via: [String])
         case dismissJoinRoomScreen
+        case joinedSpace
         
         case presentRoom(presentationAction: PresentationAction?)
         case dismissFlow
         
-        case presentThread(itemID: TimelineItemIdentifier)
+        case presentThread(threadRootEventID: String, focusEventID: String?)
         case dismissThread
+        
+        case startSpaceFlow
+        case finishedSpaceFlow
         
         case presentReportContent(itemID: TimelineItemIdentifier, senderID: String)
         case dismissReportContent
@@ -110,22 +131,13 @@ extension RoomFlowCoordinator {
         case presentGlobalNotificationSettingsScreen
         case dismissGlobalNotificationSettingsScreen
         
-        case presentRoomMembersList
-        case dismissRoomMembersList
-        
-        case presentRoomMemberDetails(userID: String)
-        case dismissRoomMemberDetails
-        
-        case presentUserProfile(userID: String)
-        case dismissUserProfile
-        
         case presentInviteUsersScreen
         case dismissInviteUsersScreen
                 
-        case presentMediaUploadPicker(source: MediaPickerScreenSource)
+        case presentMediaUploadPicker(mode: MediaPickerScreenMode)
         case dismissMediaUploadPicker
         
-        case presentMediaUploadPreview(fileURL: URL)
+        case presentMediaUploadPreview(mediaURLs: [URL])
         case dismissMediaUploadPreview
         
         case presentEmojiPicker(itemID: TimelineItemIdentifier, selectedEmojis: Set<String>)
@@ -164,11 +176,17 @@ extension RoomFlowCoordinator {
         case presentSecurityAndPrivacyScreen
         case dismissSecurityAndPrivacyScreen
         
+        case presentManageAuthorizedSpacesScreen
+        case dismissedManageAuthorizedSpacesScreen
+        
         case presentReportRoomScreen
         case dismissReportRoomScreen
         
         case presentDeclineAndBlockScreen(userID: String)
         case dismissDeclineAndBlockScreen
+        
+        case startMembersFlow(entryPoint: RoomMembersFlowCoordinatorEntryPoint)
+        case stopMembersFlow
     }
     
     // swiftlint:disable:next function_body_length
@@ -184,19 +202,21 @@ extension RoomFlowCoordinator {
             case (.room, .presentReportContent(let itemID, let senderID)):
                 return .reportContent(itemID: itemID, senderID: senderID, previousState: fromState)
                 
-            case (.room, .presentMediaUploadPicker(let source)):
-                return .mediaUploadPicker(source: source, previousState: fromState)
+            case (.room, .presentMediaUploadPicker(let mode)):
+                return .mediaUploadPicker(mode: mode, previousState: fromState)
             
-            case (.room, .presentMediaUploadPreview(let fileURL)):
-                return .mediaUploadPreview(fileURL: fileURL, previousState: fromState)
+            case (.room, .presentMediaUploadPreview(let mediaURLs)):
+                return .mediaUploadPreview(mediaURLs: mediaURLs, previousState: fromState)
                 
             case (.room, .presentEmojiPicker(let itemID, let selectedEmoji)):
                 return .emojiPicker(itemID: itemID, selectedEmojis: selectedEmoji, previousState: fromState)
             
             case (.room, .presentMessageForwarding(let forwardingItem)):
                 return .messageForwarding(forwardingItem: forwardingItem, previousState: fromState)
+            case (.mediaEventsTimeline, .presentMessageForwarding(forwardingItem: let forwardingItem)):
+                return .messageForwarding(forwardingItem: forwardingItem, previousState: fromState)
 
-            case (.room, .presentMapNavigator):
+            case (.room, .presentMapNavigator(_)):
                 return .mapNavigator(previousState: fromState)
             
             case (.room, .presentPollForm):
@@ -213,19 +233,21 @@ extension RoomFlowCoordinator {
                 return previousState
                 
             // Thread
-            case (.room, .presentThread(let itemID)):
-                return .thread(itemID: itemID)
-            case (.thread, .dismissThread):
-                return .room
+            case (.room, .presentThread(let threadRootEventID, _)):
+                return .thread(threadRootEventID: threadRootEventID, previousState: fromState)
+            case (.thread, .presentThread(let threadRootEventID, _)):
+                return .thread(threadRootEventID: threadRootEventID, previousState: fromState)
+            case (.thread(_, let previousState), .dismissThread):
+                return previousState
                 
             case (.thread, .presentReportContent(let itemID, let senderID)):
                 return .reportContent(itemID: itemID, senderID: senderID, previousState: fromState)
                 
-            case (.thread, .presentMediaUploadPicker(let source)):
-                return .mediaUploadPicker(source: source, previousState: fromState)
+            case (.thread, .presentMediaUploadPicker(let mode)):
+                return .mediaUploadPicker(mode: mode, previousState: fromState)
             
-            case (.thread, .presentMediaUploadPreview(let fileURL)):
-                return .mediaUploadPreview(fileURL: fileURL, previousState: fromState)
+            case (.thread, .presentMediaUploadPreview(let mediaURLs)):
+                return .mediaUploadPreview(mediaURLs: mediaURLs, previousState: fromState)
                 
             case (.thread, .presentEmojiPicker(let itemID, let selectedEmoji)):
                 return .emojiPicker(itemID: itemID, selectedEmojis: selectedEmoji, previousState: fromState)
@@ -233,7 +255,7 @@ extension RoomFlowCoordinator {
             case (.thread, .presentMessageForwarding(let forwardingItem)):
                 return .messageForwarding(forwardingItem: forwardingItem, previousState: fromState)
 
-            case (.thread, .presentMapNavigator):
+            case (.thread, .presentMapNavigator(_)):
                 return .mapNavigator(previousState: fromState)
             
             case (.thread, .presentPollForm):
@@ -279,11 +301,6 @@ extension RoomFlowCoordinator {
             case (.roomDetailsEditScreen, .dismissRoomDetailsEditScreen):
                 return .roomDetails(isRoot: false)
                 
-            case (.roomDetails, .presentRoomMembersList):
-                return .roomMembersList
-            case (.roomMembersList, .dismissRoomMembersList):
-                return .roomDetails(isRoot: false)
-                
             case (.roomDetails, .presentNotificationSettingsScreen):
                 return .notificationSettings
             case (.notificationSettings, .dismissNotificationSettingsScreen):
@@ -309,6 +326,11 @@ extension RoomFlowCoordinator {
             case (.securityAndPrivacy(let previousState), .dismissSecurityAndPrivacyScreen):
                 return previousState
                 
+            case (.securityAndPrivacy, .presentManageAuthorizedSpacesScreen):
+                return .manageAuthorizedSpacesScreen(previousState: fromState)
+            case (.manageAuthorizedSpacesScreen(let previousState), .dismissedManageAuthorizedSpacesScreen):
+                return previousState
+                
             case (.roomDetails, .presentReportRoomScreen):
                 return .reportRoom(previousState: fromState)
             case (.reportRoom(let previousState), .dismissReportRoomScreen):
@@ -320,6 +342,8 @@ extension RoomFlowCoordinator {
                 return .joinRoomScreen
             case (_, .dismissJoinRoomScreen):
                 return .complete
+            case (_, .joinedSpace):
+                return .complete
                 
             case (.joinRoomScreen, .presentDeclineAndBlockScreen):
                 return .declineAndBlockScreen
@@ -327,15 +351,20 @@ extension RoomFlowCoordinator {
                 return .joinRoomScreen
                 
             // Other
+                
+            case (_, .startMembersFlow):
+                return .membersFlow(previousState: fromState)
+            case (.membersFlow(let previousState), .stopMembersFlow):
+                return previousState
             
             case (_, .startChildFlow(let roomID, _, _)):
                 return .presentingChild(childRoomID: roomID, previousState: fromState)
             case (.presentingChild(_, let previousState), .dismissChildFlow):
                 return previousState
-                    
-            case (_, .presentRoomMemberDetails(userID: let userID)):
-                return .roomMemberDetails(userID: userID, previousState: fromState)
-            case (.roomMemberDetails(_, let previousState), .dismissRoomMemberDetails):
+                
+            case (.presentingChild(_, let previousState), .startSpaceFlow):
+                return .spaceFlow(previousState: previousState)
+            case (.spaceFlow(let previousState), .finishedSpaceFlow):
                 return previousState
                 
             case (_, .presentKnockRequestsListScreen):
@@ -350,19 +379,14 @@ extension RoomFlowCoordinator {
                 return .globalNotificationSettings
             case (.globalNotificationSettings, .dismissGlobalNotificationSettingsScreen):
                 return .notificationSettings
-            
-            case (.roomMemberDetails(_, let previousState), .presentUserProfile(let userID)):
-                return .userProfile(userID: userID, previousState: previousState)
-            case (.userProfile(_, let previousState), .dismissUserProfile):
-                return previousState
                 
             case (.pollsHistory, .presentPollForm):
                 return .pollsHistoryForm
             case (.pollsHistoryForm, .dismissPollForm):
                 return .pollsHistory
                 
-            case (.mediaUploadPicker, .presentMediaUploadPreview(let fileURL)):
-                return .mediaUploadPreview(fileURL: fileURL, previousState: fromState)
+            case (.mediaUploadPicker(_, let previousMediaUploadPickerState), .presentMediaUploadPreview(let mediaURLs)):
+                return .mediaUploadPreview(mediaURLs: mediaURLs, previousState: previousMediaUploadPickerState)
                 
             case (_, .presentInviteUsersScreen):
                 return .inviteUsersScreen(previousState: fromState)

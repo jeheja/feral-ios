@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -36,7 +37,7 @@ struct SessionVerificationScreenViewState: BindableState {
             switch flow {
             case .deviceInitiator, .deviceResponder:
                 return (\.devices, .defaultSolid)
-            case .userIntiator, .userResponder:
+            case .userInitiator, .userResponder:
                 return (\.userProfileSolid, .defaultSolid)
             }
         case .acceptingVerificationRequest:
@@ -74,7 +75,7 @@ struct SessionVerificationScreenViewState: BindableState {
             switch flow {
             case .deviceInitiator:
                 return L10n.screenSessionVerificationUseAnotherDeviceTitle
-            case .userIntiator:
+            case .userInitiator:
                 return L10n.screenSessionVerificationUserInitiatorTitle
             case .deviceResponder, .userResponder:
                 return L10n.screenSessionVerificationRequestTitle
@@ -96,7 +97,12 @@ struct SessionVerificationScreenViewState: BindableState {
         case .decliningChallenge:
             return L10n.screenSessionVerificationCompareEmojisTitle
         case .verified:
-            return L10n.commonVerificationComplete
+            switch flow {
+            case .deviceInitiator, .deviceResponder:
+                return L10n.screenSessionVerificationDeviceVerified
+            case .userInitiator, .userResponder:
+                return L10n.commonVerificationComplete
+            }
         case .cancelling:
             return waitingTitle
         case .cancelled:
@@ -108,7 +114,7 @@ struct SessionVerificationScreenViewState: BindableState {
         switch flow {
         case .deviceInitiator, .deviceResponder:
             return L10n.screenSessionVerificationWaitingOtherDeviceTitle
-        case .userIntiator, .userResponder:
+        case .userInitiator, .userResponder:
             return L10n.screenSessionVerificationWaitingOtherUserTitle
         }
     }
@@ -119,7 +125,7 @@ struct SessionVerificationScreenViewState: BindableState {
             switch flow {
             case .deviceInitiator:
                 return L10n.screenSessionVerificationUseAnotherDeviceSubtitle
-            case .userIntiator:
+            case .userInitiator:
                 return L10n.screenSessionVerificationUserInitiatorSubtitle
             case .deviceResponder:
                 return L10n.screenSessionVerificationRequestSubtitle
@@ -146,14 +152,14 @@ struct SessionVerificationScreenViewState: BindableState {
             switch flow {
             case .deviceInitiator, .deviceResponder:
                 return L10n.screenSessionVerificationCompareEmojisSubtitle
-            case .userIntiator, .userResponder:
+            case .userInitiator, .userResponder:
                 return L10n.screenSessionVerificationCompareEmojisUserSubtitle
             }
         case .verified:
             switch flow {
             case .deviceInitiator, .deviceResponder:
                 return L10n.screenSessionVerificationCompleteSubtitle
-            case .userIntiator, .userResponder:
+            case .userInitiator, .userResponder:
                 return L10n.screenSessionVerificationCompleteUserSubtitle
             }
             

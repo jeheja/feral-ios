@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -47,7 +48,7 @@ struct ElementCallWidgetMessage: Codable {
     }
 }
 
-class ElementCallWidgetDriver: WidgetCapabilitiesProvider, ElementCallWidgetDriverProtocol {
+final class ElementCallWidgetDriver: WidgetCapabilitiesProvider, ElementCallWidgetDriverProtocol {
     private let room: RoomProtocol
     private let deviceID: String
     
@@ -75,30 +76,24 @@ class ElementCallWidgetDriver: WidgetCapabilitiesProvider, ElementCallWidgetDriv
             return .failure(.roomInvalid)
         }
         
-        let useEncryption = await (try? room.latestEncryptionState() == .encrypted) ?? false
-        let widgetSettings: WidgetSettings
+        async let useEncryption = (try? room.latestEncryptionState() == .encrypted) ?? false
+        async let intent = room.joinCallIntent
         
+        let widgetSettings: WidgetSettings
         do {
-            widgetSettings = try newVirtualElementCallWidget(props: .init(elementCallUrl: baseURL.absoluteString,
-                                                                          widgetId: widgetID,
-                                                                          parentUrl: nil,
-                                                                          hideHeader: nil,
-                                                                          preload: nil,
-                                                                          fontScale: nil,
-                                                                          appPrompt: false,
-                                                                          confineToRoom: true,
-                                                                          font: nil,
-                                                                          encryption: useEncryption ? .perParticipantKeys : .unencrypted,
-                                                                          intent: .startCall,
-                                                                          hideScreensharing: false,
-                                                                          posthogUserId: nil,
-                                                                          posthogApiHost: analyticsConfiguration?.posthogAPIHost,
-                                                                          posthogApiKey: analyticsConfiguration?.posthogAPIKey,
-                                                                          rageshakeSubmitUrl: rageshakeURL,
-                                                                          sentryDsn: analyticsConfiguration?.sentryDSN,
-                                                                          sentryEnvironment: nil,
-                                                                          // Set this to false until we have the full implementation otherwise should be false only on macOS
-                                                                          controlledMediaDevices: false))
+            widgetSettings = try await newVirtualElementCallWidget(props: .init(elementCallUrl: baseURL.absoluteString,
+                                                                                widgetId: widgetID,
+                                                                                parentUrl: nil,
+                                                                                fontScale: nil,
+                                                                                font: nil,
+                                                                                encryption: useEncryption ? .perParticipantKeys : .unencrypted,
+                                                                                posthogUserId: nil,
+                                                                                posthogApiHost: analyticsConfiguration?.posthogAPIHost,
+                                                                                posthogApiKey: analyticsConfiguration?.posthogAPIKey,
+                                                                                rageshakeSubmitUrl: rageshakeURL,
+                                                                                sentryDsn: analyticsConfiguration?.sentryDSN,
+                                                                                sentryEnvironment: nil),
+                                                                   config: .init(intent: intent))
         } catch {
             MXLog.error("Failed to build widget settings: \(error)")
             return .failure(.failedBuildingWidgetSettings)
@@ -164,6 +159,7 @@ class ElementCallWidgetDriver: WidgetCapabilitiesProvider, ElementCallWidgetDriv
         return .success(url)
     }
     
+    @discardableResult
     func handleMessage(_ message: String) async -> Result<Bool, ElementCallWidgetDriverError> {
         guard let widgetDriver else {
             return .failure(.driverNotSetup)

@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -90,9 +91,7 @@ class ReportRoomScreenViewModelTests: XCTestCase {
             return .failure(.eventNotFound)
         }
         
-        let deferred = deferFulfillment(context.$viewState) { state in
-            state.bindings.alert != nil
-        }
+        let deferred = deferFulfillment(context.observe(\.viewState.bindings.alert)) { $0 != nil }
         
         context.reason = reason
         context.shouldLeaveRoom = true

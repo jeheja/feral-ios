@@ -1,7 +1,8 @@
 //
+// Copyright 2025 Element Creations Ltd.
 // Copyright 2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -28,6 +29,14 @@ extension SDKListener: QrLoginProgressListener where T == QrLoginProgress {
     func onUpdate(state: QrLoginProgress) { onUpdateClosure(state) }
 }
 
+extension SDKListener: GrantQrLoginProgressListener where T == GrantQrLoginProgress {
+    func onUpdate(state: GrantQrLoginProgress) { onUpdateClosure(state) }
+}
+
+extension SDKListener: GrantGeneratedQrLoginProgressListener where T == GrantGeneratedQrLoginProgress {
+    func onUpdate(state: GrantGeneratedQrLoginProgress) { onUpdateClosure(state) }
+}
+
 // MARK: ClientProxy
 
 extension SDKListener: MediaPreviewConfigListener where T == MediaPreviewConfig? {
@@ -48,6 +57,14 @@ extension SDKListener: RoomListServiceSyncIndicatorListener where T == RoomListS
 
 extension SDKListener: VerificationStateListener where T == VerificationState {
     func onUpdate(status: VerificationState) { onUpdateClosure(status) }
+}
+
+extension SDKListener: IgnoredUsersListener where T == [String] {
+    func call(ignoredUserIds: [String]) { onUpdateClosure(ignoredUserIds) }
+}
+
+extension SDKListener: SendQueueRoomErrorListener where T == (String, ClientError) {
+    func onError(roomId: String, error: ClientError) { onUpdateClosure((roomId, error)) }
 }
 
 // MARK: SecureBackupController
@@ -78,10 +95,44 @@ extension SDKListener: RoomListLoadingStateListener where T == RoomListLoadingSt
     func onUpdate(state: RoomListLoadingState) { onUpdateClosure(state) }
 }
 
+// MARK: Spaces
+
+extension SDKListener: SpaceServiceJoinedSpacesListener where T == [SpaceListUpdate] {
+    func onUpdate(rooms: [SpaceListUpdate]) { onUpdateClosure(rooms) }
+}
+
+extension SDKListener: SpaceRoomListEntriesListener where T == [SpaceListUpdate] {
+    func onUpdate(roomUpdates: [SpaceListUpdate]) { onUpdateClosure(roomUpdates) }
+}
+
+extension SDKListener: SpaceRoomListPaginationStateListener where T == SpaceRoomListPaginationState {
+    func onUpdate(paginationState: SpaceRoomListPaginationState) { onUpdateClosure(paginationState) }
+}
+
+extension SDKListener: SpaceRoomListSpaceListener where T == SpaceRoom? {
+    func onUpdate(space: SpaceRoom?) { onUpdateClosure(space) }
+}
+
 // MARK: Room
 
 extension SDKListener: RoomInfoListener where T == RoomInfo {
     func call(roomInfo: RoomInfo) { onUpdateClosure(roomInfo) }
+}
+
+extension SDKListener: CallDeclineListener where T == String {
+    func call(declinerUserId: String) { onUpdateClosure(declinerUserId) }
+}
+
+extension SDKListener: TypingNotificationsListener where T == [String] {
+    func call(typingUserIds: [String]) { onUpdateClosure(typingUserIds) }
+}
+
+extension SDKListener: IdentityStatusChangeListener where T == [IdentityStatusChange] {
+    func call(identityStatusChange: [IdentityStatusChange]) { onUpdateClosure(identityStatusChange) }
+}
+
+extension SDKListener: KnockRequestsListener where T == [KnockRequest] {
+    func call(joinRequests: [KnockRequest]) { onUpdateClosure(joinRequests) }
 }
 
 // MARK: TimelineProxy

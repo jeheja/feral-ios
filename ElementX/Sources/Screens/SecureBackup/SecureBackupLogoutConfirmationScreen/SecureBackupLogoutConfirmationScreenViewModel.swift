@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -12,7 +13,7 @@ typealias SecureBackupLogoutConfirmationScreenViewModelType = StateStoreViewMode
 
 class SecureBackupLogoutConfirmationScreenViewModel: SecureBackupLogoutConfirmationScreenViewModelType, SecureBackupLogoutConfirmationScreenViewModelProtocol {
     private let secureBackupController: SecureBackupControllerProtocol
-    private let appMediator: AppMediatorProtocol
+    private let homeserverReachabilityPublisher: CurrentValuePublisher<NetworkMonitorReachability, Never>
     
     private let backupUploadStateSubject: CurrentValueSubject<SecureBackupSteadyState, Never> = .init(.waiting)
     
@@ -27,13 +28,13 @@ class SecureBackupLogoutConfirmationScreenViewModel: SecureBackupLogoutConfirmat
         actionsSubject.eraseToAnyPublisher()
     }
 
-    init(secureBackupController: SecureBackupControllerProtocol, appMediator: AppMediatorProtocol) {
+    init(secureBackupController: SecureBackupControllerProtocol, homeserverReachabilityPublisher: CurrentValuePublisher<NetworkMonitorReachability, Never>) {
         self.secureBackupController = secureBackupController
-        self.appMediator = appMediator
+        self.homeserverReachabilityPublisher = homeserverReachabilityPublisher
         
         super.init(initialViewState: .init(mode: .saveRecoveryKey))
         
-        backupUploadStateSubject.combineLatest(appMediator.networkMonitor.reachabilityPublisher)
+        backupUploadStateSubject.combineLatest(homeserverReachabilityPublisher)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] backupState, reachability in
                 guard let self, state.mode != .saveRecoveryKey else { return }
@@ -62,7 +63,7 @@ class SecureBackupLogoutConfirmationScreenViewModel: SecureBackupLogoutConfirmat
     
     private func attemptLogout() {
         if case .saveRecoveryKey = state.mode {
-            updateMode(backupState: backupUploadStateSubject.value, reachability: appMediator.networkMonitor.reachabilityPublisher.value)
+            updateMode(backupState: backupUploadStateSubject.value, reachability: homeserverReachabilityPublisher.value)
             
             keyUploadWaitingTask = Task {
                 var result = await secureBackupController.waitForKeyBackupUpload(uploadStateSubject: backupUploadStateSubject)

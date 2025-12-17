@@ -20,6 +20,24 @@
 			<string>%1$d zadaných číslic</string>
 		</dict>
 	</dict>
+	<key>a11y_polls_percent_of_total</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@COUNT@</string>
+		<key>COUNT</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%1$d percento z celkového počtu hlasov</string>
+			<key>few</key>
+			<string>%1$d percentá z celkového počtu hlasov</string>
+			<key>other</key>
+			<string>%1$d percent z celkového počtu hlasov</string>
+		</dict>
+	</dict>
 	<key>a11y_read_receipts_multiple_with_others</key>
 	<dict>
 		<key>NSStringLocalizedFormatKey</key>
@@ -90,6 +108,60 @@
 			<string>%d hlasy</string>
 			<key>other</key>
 			<string>%d hlasov</string>
+		</dict>
+	</dict>
+	<key>common_replies</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@COUNT@</string>
+		<key>COUNT</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%1$d odpoveď</string>
+			<key>few</key>
+			<string>%1$d odpovede</string>
+			<key>other</key>
+			<string>%1$d odpovedí</string>
+		</dict>
+	</dict>
+	<key>common_rooms</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@COUNT@</string>
+		<key>COUNT</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%1$d miestnosť</string>
+			<key>few</key>
+			<string>%1$d miestnosti</string>
+			<key>other</key>
+			<string>%1$d miestností</string>
+		</dict>
+	</dict>
+	<key>common_spaces</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@COUNT@</string>
+		<key>COUNT</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%1$d priestor</string>
+			<key>few</key>
+			<string>%1$d priestory</string>
+			<key>other</key>
+			<string>%1$d priestorov</string>
 		</dict>
 	</dict>
 	<key>notification_compat_summary_line_for_room</key>
@@ -236,6 +308,24 @@
 			<string>Nesprávny PIN kód. Máte ešte %1$d pokusov</string>
 		</dict>
 	</dict>
+	<key>screen_leave_space_submit</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@COUNT@</string>
+		<key>COUNT</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>Opustiť %1$d miestnosť a priestor</string>
+			<key>few</key>
+			<string>Opustiť %1$d miestnosti a priestory</string>
+			<key>other</key>
+			<string>Opustiť %1$d miestností a priestorov</string>
+		</dict>
+	</dict>
 	<key>screen_pinned_timeline_screen_title</key>
 	<dict>
 		<key>NSStringLocalizedFormatKey</key>
@@ -252,6 +342,24 @@
 			<string>%1$d pripnuté správy</string>
 			<key>other</key>
 			<string>%1$d pripnutých správ</string>
+		</dict>
+	</dict>
+	<key>screen_room_member_list_banned_header_title</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@COUNT@</string>
+		<key>COUNT</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%1$d zakázaný</string>
+			<key>few</key>
+			<string>%1$d zakázaní</string>
+			<key>other</key>
+			<string>%1$d zakázaných</string>
 		</dict>
 	</dict>
 	<key>screen_room_member_list_header_title</key>
@@ -272,6 +380,24 @@
 			<string>%1$d osôb</string>
 		</dict>
 	</dict>
+	<key>screen_room_member_list_pending_header_title</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@COUNT@</string>
+		<key>COUNT</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%1$d pozvaný</string>
+			<key>few</key>
+			<string>%1$d pozvaní</string>
+			<key>other</key>
+			<string>%1$d pozvaných</string>
+		</dict>
+	</dict>
 	<key>screen_room_multiple_knock_requests_title</key>
 	<dict>
 		<key>NSStringLocalizedFormatKey</key>
@@ -288,6 +414,42 @@
 			<string>%1$@ +%2$d ďalší chcú vstúpiť do tejto miestnosti</string>
 			<key>other</key>
 			<string>%1$@ +%2$d ďalších chce vstúpiť do tejto miestnosti</string>
+		</dict>
+	</dict>
+	<key>screen_room_timeline_reaction_a11y</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@COUNT@</string>
+		<key>COUNT</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%1$d člen reagoval s %2$@</string>
+			<key>few</key>
+			<string>%1$d členovia reagovali s %2$@</string>
+			<key>other</key>
+			<string>%1$d členov reagovalo s %2$@</string>
+		</dict>
+	</dict>
+	<key>screen_room_timeline_reaction_including_you_a11y</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@COUNT@</string>
+		<key>COUNT</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>Vy a %1$d člen reagoval s %2$@</string>
+			<key>few</key>
+			<string>Vy a %1$d členovia reagovali s %2$@</string>
+			<key>other</key>
+			<string>Vy a %1$d členov reagovalo s %2$@</string>
 		</dict>
 	</dict>
 	<key>screen_room_timeline_state_changes</key>
@@ -342,6 +504,24 @@
 			<string>%1$@ píšu</string>
 			<key>other</key>
 			<string>%1$@ píšu</string>
+		</dict>
+	</dict>
+	<key>troubleshoot_notifications_test_blocked_users_result_some</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@COUNT@</string>
+		<key>COUNT</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>Zablokovali ste %1$d používateľa. Nebudete dostávať oznámenia od tohto používateľa.</string>
+			<key>few</key>
+			<string>Zablokovali ste %1$d používateľov. Nebudete dostávať oznámenia od týchto používateľov.</string>
+			<key>other</key>
+			<string>Zablokovali ste %1$d používateľov. Nebudete dostávať oznámenia od týchto používateľov.</string>
 		</dict>
 	</dict>
 	<key>troubleshoot_notifications_test_detect_push_provider_success</key>

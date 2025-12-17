@@ -1,22 +1,33 @@
 //
-// Copyright 2023, 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2023-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
 import Foundation
 import MatrixRustSDK
 
-final class NSEUserSession {
-    let sessionDirectories: SessionDirectories
+// sourcery: AutoMockable
+protocol NSEUserSessionProtocol {
+    var inviteAvatarsVisibility: InviteAvatars { get async }
+    var mediaPreviewVisibility: MediaPreviews { get async }
+    var threadsEnabled: Bool { get }
     
+    func notificationItemProxy(roomID: String, eventID: String) async -> NotificationItemProxyProtocol?
+    func roomForIdentifier(_ roomID: String) -> Room?
+}
+
+final class NSEUserSession: NSEUserSessionProtocol {
+    private let sessionDirectories: SessionDirectories
+    private let appSettings: CommonSettingsProtocol
     private let baseClient: Client
     private let notificationClient: NotificationClient
     private let userID: String
     private(set) lazy var mediaProvider: MediaProviderProtocol = MediaProvider(mediaLoader: MediaLoader(client: baseClient),
                                                                                imageCache: .onlyOnDisk,
-                                                                               networkMonitor: nil)
+                                                                               homeserverReachabilityPublisher: nil)
     private let delegateHandle: TaskHandle?
     
     var mediaPreviewVisibility: MediaPreviews {
@@ -40,6 +51,10 @@ final class NSEUserSession {
             }
         }
     }
+    
+    var threadsEnabled: Bool {
+        appSettings.threadsEnabled
+    }
 
     init(credentials: KeychainCredentials,
          roomID: String,
@@ -47,11 +62,8 @@ final class NSEUserSession {
          appHooks: AppHooks,
          appSettings: CommonSettingsProtocol) async throws {
         sessionDirectories = credentials.restorationToken.sessionDirectories
-        
         userID = credentials.userID
-        if credentials.restorationToken.passphrase != nil {
-            MXLog.info("Restoring client with encrypted store.")
-        }
+        self.appSettings = appSettings
         
         let homeserverURL = credentials.restorationToken.session.homeserverUrl
         let clientBuilder = ClientBuilder
@@ -61,14 +73,16 @@ final class NSEUserSession {
                          sessionDelegate: clientSessionDelegate,
                          appHooks: appHooks,
                          enableOnlySignedDeviceIsolationMode: appSettings.enableOnlySignedDeviceIsolationMode,
+                         enableKeyShareOnInvite: appSettings.enableKeyShareOnInvite,
                          requestTimeout: 15000,
-                         maxRequestRetryTime: 5000)
+                         maxRequestRetryTime: 5000,
+                         threadsEnabled: appSettings.threadsEnabled)
             .systemIsMemoryConstrained()
-            .sessionPaths(dataPath: credentials.restorationToken.sessionDirectories.dataPath,
-                          cachePath: credentials.restorationToken.sessionDirectories.cachePath)
+            .sqliteStore(config: .init(dataPath: credentials.restorationToken.sessionDirectories.dataPath,
+                                       cachePath: credentials.restorationToken.sessionDirectories.cachePath)
+                    .passphrase(passphrase: credentials.restorationToken.passphrase))
             .username(username: credentials.userID)
             .homeserverUrl(url: homeserverURL)
-            .sessionPassphrase(passphrase: credentials.restorationToken.passphrase)
         
         baseClient = try await clientBuilder.build()
         delegateHandle = try baseClient.setDelegate(delegate: ClientDelegateWrapper())
@@ -81,15 +95,21 @@ final class NSEUserSession {
     
     func notificationItemProxy(roomID: String, eventID: String) async -> NotificationItemProxyProtocol? {
         do {
-            let notification = try await notificationClient.getNotification(roomId: roomID, eventId: eventID)
+            let notificationStatus = try await notificationClient.getNotification(roomId: roomID, eventId: eventID)
                 
-            guard let notification else {
+            switch notificationStatus {
+            case .event(let notification):
+                return NotificationItemProxy(notificationItem: notification,
+                                             eventID: eventID,
+                                             receiverID: userID,
+                                             roomID: roomID)
+            case .eventNotFound:
+                MXLog.error("Notification event not found - roomID: \(roomID) eventID: \(eventID)")
+                return nil
+            case .eventFilteredOut:
+                MXLog.warning("Notification event filtered out - roomID: \(roomID) eventID: \(eventID)")
                 return nil
             }
-            return NotificationItemProxy(notificationItem: notification,
-                                         eventID: eventID,
-                                         receiverID: userID,
-                                         roomID: roomID)
         } catch {
             MXLog.error("Could not get notification's content creating an empty notification instead, error: \(error)")
             return EmptyNotificationItemProxy(eventID: eventID, roomID: roomID, receiverID: userID)
@@ -110,7 +130,7 @@ final class NSEUserSession {
     }
 }
 
-private class ClientDelegateWrapper: ClientDelegate {
+private final class ClientDelegateWrapper: ClientDelegate {
     // MARK: - ClientDelegate
 
     func didReceiveAuthError(isSoftLogout: Bool) {

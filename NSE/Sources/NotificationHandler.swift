@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -44,6 +45,7 @@ class NotificationHandler {
         
         // Copy over the unread information to the notification badge
         notificationContent.badge = notificationContent.unreadCount as NSNumber?
+        MXLog.info("\(tag) New badge value: \(notificationContent.badge?.stringValue ?? "nil")")
         
         guard let notificationItemProxy = await userSession.notificationItemProxy(roomID: roomID, eventID: eventID) else {
             MXLog.error("\(tag) Failed retrieving notification item")
@@ -82,6 +84,7 @@ class NotificationHandler {
         
         let content = UNMutableNotificationContent()
         content.badge = notificationContent.unreadCount as NSNumber?
+        MXLog.info("\(tag) New badge value: \(content.badge?.stringValue ?? "nil")")
         
         contentHandler(content)
     }
@@ -104,7 +107,7 @@ class NotificationHandler {
                 return .shouldDisplay
             case .roomMessage(let messageType, _):
                 switch messageType {
-                case .emote, .image, .audio, .video, .file, .notice, .text, .location:
+                case .emote, .image, .audio, .video, .file, .notice, .text, .location, .gallery:
                     return .shouldDisplay
                 case .other:
                     return .unsupportedShouldDiscard
@@ -122,9 +125,11 @@ class NotificationHandler {
                 }
                 
                 return .processedShouldDiscard
-            case .callNotify(let notifyType):
-                return await handleCallNotification(notifyType: notifyType,
+            case .rtcNotification(let notificationType, let expirationTimestamp):
+                return await handleCallNotification(notificationType: notificationType,
+                                                    rtcNotifyEventID: event.eventId(),
                                                     timestamp: event.timestamp(),
+                                                    expirationTimestamp: expirationTimestamp,
                                                     roomID: itemProxy.roomID,
                                                     roomDisplayName: itemProxy.roomDisplayName)
             case .callAnswer,
@@ -150,8 +155,10 @@ class NotificationHandler {
     
     /// Handle incoming call notifications.
     /// - Returns: A boolean indicating whether the notification was handled and should now be discarded.
-    private func handleCallNotification(notifyType: NotifyType,
+    private func handleCallNotification(notificationType: RtcNotificationType,
+                                        rtcNotifyEventID: String,
                                         timestamp: Timestamp,
+                                        expirationTimestamp: Timestamp,
                                         roomID: String,
                                         roomDisplayName: String) async -> NotificationProcessingResult {
         // Handle incoming VoIP calls, show the native OS call screen
@@ -166,7 +173,7 @@ class NotificationHandler {
         // - the main app picks this up in `PKPushRegistry.didReceiveIncomingPushWith` and
         // `CXProvider.reportNewIncomingCall` to show the system UI and handle actions on it.
         // N.B. this flow works properly only when background processing capabilities are enabled
-        guard notifyType == .ring else {
+        guard notificationType == .ring else {
             MXLog.info("Non-ringing call notification, handling as push notification")
             return .shouldDisplay
         }
@@ -176,9 +183,13 @@ class NotificationHandler {
             if !room.hasActiveRoomCall() { // If I don't have an active call wait a bit and make sure
                 let expiringTask = ExpiringTaskRunner {
                     await withCheckedContinuation { [weak self] continuation in
-                        self?.roomInfoObservationToken = room.subscribeToRoomInfoUpdates(listener: SDKListener { _ in
-                            MXLog.info("Received room info update")
-                            continuation.resume()
+                        self?.roomInfoObservationToken = room.subscribeToRoomInfoUpdates(listener: SDKListener { info in
+                            if info.hasRoomCall {
+                                MXLog.info("Received room info update and the room has an active call now.")
+                                continuation.resume()
+                            } else {
+                                MXLog.info("Received a room info update but the room still doesn't have an ongoing call.")
+                            }
                         })
                     }
                 }
@@ -199,8 +210,11 @@ class NotificationHandler {
             }
         }
         
+        let expirationDate = Date(timeIntervalSince1970: TimeInterval(expirationTimestamp / 1000))
         let payload = [ElementCallServiceNotificationKey.roomID.rawValue: roomID,
-                       ElementCallServiceNotificationKey.roomDisplayName.rawValue: roomDisplayName]
+                       ElementCallServiceNotificationKey.roomDisplayName.rawValue: roomDisplayName,
+                       ElementCallServiceNotificationKey.expirationDate.rawValue: expirationDate,
+                       ElementCallServiceNotificationKey.rtcNotifyEventID.rawValue: rtcNotifyEventID] as [String: Any]
         
         do {
             try await CXProvider.reportNewIncomingVoIPPushPayload(payload)

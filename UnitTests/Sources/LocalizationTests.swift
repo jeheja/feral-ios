@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -49,21 +50,14 @@ class LocalizationTests: XCTestCase {
         //  set app language to English
         Bundle.overrideLocalizations = ["en"]
 
-        XCTAssertEqual(L10n.commonMemberCount(1), "1 member")
-        XCTAssertEqual(L10n.commonMemberCount(2), "2 members")
+        XCTAssertEqual(L10n.commonMemberCount(1), "1 Member")
+        XCTAssertEqual(L10n.commonMemberCount(2), "2 Members")
 
         //  set app language to Italian
         Bundle.overrideLocalizations = ["it"]
 
-        XCTAssertEqual(L10n.commonMemberCount(1), "1 membro")
-        XCTAssertEqual(L10n.commonMemberCount(2), "2 membri")
-
-//        //  set app language to Polish
-//        Bundle.overrideLocalizations = ["pl"]
-//
-//        XCTAssertEqual(L10n.commonMemberCount(1), "1 sekunda") //  one
-//        XCTAssertEqual(L10n.commonMemberCount(2), "2 sekundy") //  few
-//        XCTAssertEqual(L10n.commonMemberCount(3), "5 sekund") //  many, other
+        XCTAssertEqual(L10n.commonMemberCount(1), "1 Membro")
+        XCTAssertEqual(L10n.commonMemberCount(2), "2 Membri")
     }
 
     /// Test plurals fallback language for a language not supported at all
@@ -71,8 +65,8 @@ class LocalizationTests: XCTestCase {
         //  set app language to something Element don't support at all ("invalid identifier")
         Bundle.overrideLocalizations = ["xx"]
 
-        XCTAssertEqual(L10n.commonMemberCount(1), "1 member")
-        XCTAssertEqual(L10n.commonMemberCount(2), "2 members")
+        XCTAssertEqual(L10n.commonMemberCount(1), "1 Member")
+        XCTAssertEqual(L10n.commonMemberCount(2), "2 Members")
     }
 
     /// Test untranslated strings

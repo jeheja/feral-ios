@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -229,8 +230,8 @@ class AuthenticationFlowCoordinatorUITests: XCTestCase {
     }
     
     func verifyReportBugButton(_ app: XCUIApplication) async throws {
-        // Splash Screen: Report a problem button.
-        app.buttons[A11yIdentifiers.authenticationStartScreen.reportAProblem].tap()
+        // Splash Screen: Tap the version 7 times to report a problem
+        app.staticTexts[A11yIdentifiers.authenticationStartScreen.appVersion].tap(withNumberOfTaps: 7, numberOfTouches: 1)
         
         // Bug report: Make sure it exists then cancel.
         XCTAssert(app.textFields[A11yIdentifiers.bugReportScreen.report].exists)

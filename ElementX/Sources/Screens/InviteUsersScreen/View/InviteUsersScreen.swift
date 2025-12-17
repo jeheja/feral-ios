@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -31,6 +32,7 @@ struct InviteUsersScreen: View {
                               accessibilityFocusOnStart: true)
             .compoundSearchField()
             .alert(item: $context.alertInfo)
+            .navigationBarBackButtonHidden(context.viewState.isSkippable)
     }
     
     // MARK: - Private
@@ -125,7 +127,7 @@ struct InviteUsersScreen: View {
     
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        if !context.viewState.isCreatingRoom {
+        if !context.viewState.isSkippable {
             ToolbarItem(placement: .cancellationAction) {
                 Button(L10n.actionCancel) {
                     context.send(viewAction: .cancel)
@@ -153,12 +155,12 @@ struct InviteUsersScreen_Previews: PreviewProvider, TestablePreview {
     static let viewModel = {
         let userDiscoveryService = UserDiscoveryServiceMock()
         userDiscoveryService.searchProfilesWithReturnValue = .success([.mockAlice])
-        return InviteUsersScreenViewModel(clientProxy: ClientProxyMock(.init()),
-                                          selectedUsers: .init([]),
-                                          roomType: .draft,
-                                          mediaProvider: MediaProviderMock(configuration: .init()),
+        return InviteUsersScreenViewModel(userSession: UserSessionMock(.init()),
+                                          roomProxy: JoinedRoomProxyMock(.init()),
+                                          isSkippable: true,
                                           userDiscoveryService: userDiscoveryService,
-                                          userIndicatorController: UserIndicatorControllerMock())
+                                          userIndicatorController: UserIndicatorControllerMock(),
+                                          appSettings: ServiceLocator.shared.settings)
     }()
     
     static var previews: some View {

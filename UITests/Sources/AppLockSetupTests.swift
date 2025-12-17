@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -68,7 +69,7 @@ class AppLockSetupUITests: XCTestCase {
         try await app.assertScreenshot(step: Step.settings)
         
         app.buttons[A11yIdentifiers.appLockSetupSettingsScreen.removePIN].tap()
-        app.alerts.element.buttons[A11yIdentifiers.alertInfo.primaryButton].tap()
+        app.alerts.element.buttons[A11yIdentifiers.alertInfo.primaryButton].firstMatch.tap()
         
         // Pop the stack returning to whatever was last presented.
         try await app.assertScreenshot(step: Step.clearedStack)
@@ -110,7 +111,7 @@ class AppLockSetupUITests: XCTestCase {
         try await app.assertScreenshot(step: Step.settings)
         
         app.buttons[A11yIdentifiers.appLockSetupSettingsScreen.removePIN].tap()
-        app.alerts.element.buttons[A11yIdentifiers.alertInfo.primaryButton].tap()
+        app.alerts.element.buttons[A11yIdentifiers.alertInfo.primaryButton].firstMatch.tap()
         
         // Pop the stack returning to whatever was last presented.
         try await app.assertScreenshot(step: Step.clearedStack)

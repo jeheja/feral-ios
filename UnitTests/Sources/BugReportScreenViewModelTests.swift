@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -11,6 +12,8 @@ import XCTest
 
 @MainActor
 class BugReportScreenViewModelTests: XCTestCase {
+    let logFiles: [URL] = [URL(filePath: "/path/to/file1.log"), URL(filePath: "/path/to/file2.log")]
+    
     enum TestError: Error {
         case testError
     }
@@ -19,6 +22,7 @@ class BugReportScreenViewModelTests: XCTestCase {
         let clientProxy = ClientProxyMock(.init(userID: "@mock.client.com"))
         let viewModel = BugReportScreenViewModel(bugReportService: BugReportServiceMock(),
                                                  clientProxy: clientProxy,
+                                                 logFiles: logFiles,
                                                  screenshot: nil,
                                                  isModallyPresented: false)
         let context = viewModel.context
@@ -32,6 +36,7 @@ class BugReportScreenViewModelTests: XCTestCase {
         let clientProxy = ClientProxyMock(.init(userID: "@mock.client.com"))
         let viewModel = BugReportScreenViewModel(bugReportService: BugReportServiceMock(),
                                                  clientProxy: clientProxy,
+                                                 logFiles: logFiles,
                                                  screenshot: UIImage.actions,
                                                  isModallyPresented: false)
         let context = viewModel.context
@@ -44,7 +49,9 @@ class BugReportScreenViewModelTests: XCTestCase {
         let clientProxy = ClientProxyMock(.init(userID: "@mock.client.com"))
         let viewModel = BugReportScreenViewModel(bugReportService: BugReportServiceMock(),
                                                  clientProxy: clientProxy,
-                                                 screenshot: nil, isModallyPresented: false)
+                                                 logFiles: logFiles,
+                                                 screenshot: nil,
+                                                 isModallyPresented: false)
         let context = viewModel.context
         XCTAssertNil(context.viewState.screenshot)
         context.send(viewAction: .attachScreenshot(UIImage.actions))
@@ -55,7 +62,7 @@ class BugReportScreenViewModelTests: XCTestCase {
         let mockService = BugReportServiceMock()
         mockService.submitBugReportProgressListenerClosure = { _, _ in
             await Task.yield()
-            return .success(SubmitBugReportResponse(reportUrl: "https://test.test"))
+            return .success(SubmitBugReportResponse(reportURL: "https://test.test"))
         }
         
         let clientProxy = ClientProxyMock(.init(userID: "@mock.client.com", deviceID: "ABCDEFGH"))
@@ -64,7 +71,9 @@ class BugReportScreenViewModelTests: XCTestCase {
         
         let viewModel = BugReportScreenViewModel(bugReportService: mockService,
                                                  clientProxy: clientProxy,
-                                                 screenshot: nil, isModallyPresented: false)
+                                                 logFiles: logFiles,
+                                                 screenshot: nil,
+                                                 isModallyPresented: false)
         let context = viewModel.context
         context.reportText = "This will succeed"
         
@@ -79,14 +88,14 @@ class BugReportScreenViewModelTests: XCTestCase {
         
         context.send(viewAction: .submit)
         try await deferred.fulfill()
-                
+        
         XCTAssert(mockService.submitBugReportProgressListenerCallsCount == 1)
         XCTAssertEqual(mockService.submitBugReportProgressListenerReceivedArguments?.bugReport.userID, "@mock.client.com")
         XCTAssertEqual(mockService.submitBugReportProgressListenerReceivedArguments?.bugReport.deviceID, "ABCDEFGH")
         XCTAssertEqual(mockService.submitBugReportProgressListenerReceivedArguments?.bugReport.curve25519, "THECURVEKEYKEY")
         XCTAssertEqual(mockService.submitBugReportProgressListenerReceivedArguments?.bugReport.ed25519, "THEEDKEYKEY")
         XCTAssertEqual(mockService.submitBugReportProgressListenerReceivedArguments?.bugReport.text, "This will succeed")
-        XCTAssertEqual(mockService.submitBugReportProgressListenerReceivedArguments?.bugReport.includeLogs, true)
+        XCTAssertEqual(mockService.submitBugReportProgressListenerReceivedArguments?.bugReport.logFiles, logFiles)
         XCTAssertEqual(mockService.submitBugReportProgressListenerReceivedArguments?.bugReport.canContact, false)
         XCTAssertEqual(mockService.submitBugReportProgressListenerReceivedArguments?.bugReport.githubLabels, [])
         XCTAssertEqual(mockService.submitBugReportProgressListenerReceivedArguments?.bugReport.files, [])

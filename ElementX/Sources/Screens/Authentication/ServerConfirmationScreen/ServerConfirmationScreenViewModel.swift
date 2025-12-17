@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -13,6 +14,7 @@ typealias ServerConfirmationScreenViewModelType = StateStoreViewModelV2<ServerCo
 class ServerConfirmationScreenViewModel: ServerConfirmationScreenViewModelType, ServerConfirmationScreenViewModelProtocol {
     let authenticationService: AuthenticationServiceProtocol
     let authenticationFlow: AuthenticationFlow
+    let appSettings: AppSettings
     let userIndicatorController: UserIndicatorControllerProtocol
     
     private var actionsSubject: PassthroughSubject<ServerConfirmationScreenViewModelAction, Never> = .init()
@@ -24,9 +26,11 @@ class ServerConfirmationScreenViewModel: ServerConfirmationScreenViewModelType, 
     init(authenticationService: AuthenticationServiceProtocol,
          mode: ServerConfirmationScreenMode,
          authenticationFlow: AuthenticationFlow,
+         appSettings: AppSettings,
          userIndicatorController: UserIndicatorControllerProtocol) {
         self.authenticationService = authenticationService
         self.authenticationFlow = authenticationFlow
+        self.appSettings = appSettings
         self.userIndicatorController = userIndicatorController
         
         let pickerSelection: String? = switch mode {
@@ -94,6 +98,8 @@ class ServerConfirmationScreenViewModel: ServerConfirmationScreenViewModelType, 
                 displayError(.login)
             case .registrationNotSupported:
                 displayError(.registration)
+            case .elementProRequired(let serverName):
+                displayError(.elementProRequired(serverName: serverName))
             default:
                 displayError(.unknownError)
             }
@@ -184,6 +190,14 @@ class ServerConfirmationScreenViewModel: ServerConfirmationScreenViewModelType, 
             state.bindings.alertInfo = AlertInfo(id: .registration,
                                                  title: L10n.commonServerNotSupported,
                                                  message: L10n.errorAccountCreationNotPossible)
+        case .elementProRequired(let serverName):
+            state.bindings.alertInfo = AlertInfo(id: .elementProRequired(serverName: serverName),
+                                                 title: L10n.screenChangeServerErrorElementProRequiredTitle,
+                                                 message: L10n.screenChangeServerErrorElementProRequiredMessage(serverName),
+                                                 primaryButton: .init(title: L10n.screenChangeServerErrorElementProRequiredActionIos) {
+                                                     UIApplication.shared.open(self.appSettings.elementProAppStoreURL)
+                                                 },
+                                                 secondaryButton: .init(title: L10n.actionCancel, role: .cancel, action: nil))
         case .unknownError:
             state.bindings.alertInfo = AlertInfo(id: .unknownError)
         }

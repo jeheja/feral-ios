@@ -1,7 +1,8 @@
 //
-// Copyright 2023, 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2023-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -18,10 +19,9 @@ struct RoomMemberDetails: Identifiable, Hashable {
     var isIgnored: Bool
     var isBanned: Bool
     var isActive: Bool
-        
-    enum Role { case administrator, moderator, user }
-    let role: Role
-    let powerLevel: Int
+
+    let role: RoomRole
+    let powerLevel: RoomPowerLevel
     
     func matches(searchQuery: String) -> Bool {
         guard !searchQuery.isEmpty else { return true }
@@ -39,17 +39,7 @@ extension RoomMemberDetails {
         isInvited = proxy.membership == .invite
         isIgnored = proxy.isIgnored
         isBanned = proxy.membership == .ban
-        role = .init(proxy.role)
+        role = proxy.role
         powerLevel = proxy.powerLevel
-    }
-}
-
-extension RoomMemberDetails.Role {
-    init(_ role: RoomMemberRole) {
-        self = switch role {
-        case .administrator: .administrator
-        case .moderator: .moderator
-        case .user: .user
-        }
     }
 }

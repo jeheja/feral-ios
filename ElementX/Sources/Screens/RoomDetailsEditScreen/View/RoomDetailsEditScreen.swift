@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -29,6 +30,7 @@ struct RoomDetailsEditScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbar }
         .track(screen: .RoomSettings)
+        .alert(item: $context.alertInfo)
     }
     
     // MARK: - Private
@@ -58,8 +60,10 @@ struct RoomDetailsEditScreen: View {
                                    url: context.viewState.avatarURL,
                                    name: context.viewState.initialName,
                                    contentID: context.viewState.roomID,
+                                   isSpace: context.viewState.isSpace,
                                    avatarSize: .user(on: .memberDetails),
                                    mediaProvider: context.mediaProvider)
+                .accessibilityLabel(L10n.a11yEditAvatar)
                 .overlay(alignment: .bottomTrailing) {
                     if context.viewState.canEditAvatar {
                         avatarOverlayIcon
@@ -88,7 +92,7 @@ struct RoomDetailsEditScreen: View {
                 })
             }
         } header: {
-            Text(L10n.commonRoomName)
+            Text(L10n.commonName)
                 .compoundListSectionHeader()
         }
     }
@@ -96,7 +100,7 @@ struct RoomDetailsEditScreen: View {
     private var topicSection: some View {
         Section {
             if context.viewState.canEditTopic {
-                ListRow(label: .plain(title: L10n.commonTopicPlaceholder),
+                ListRow(label: .plain(title: context.viewState.isSpace ? L10n.commonSpaceTopicPlaceholder : L10n.commonTopicPlaceholder),
                         kind: .textField(text: $context.topic, axis: .vertical))
                     .focused($focus, equals: .topic)
                     .lineLimit(3...)
@@ -120,6 +124,7 @@ struct RoomDetailsEditScreen: View {
                 Circle()
                     .foregroundColor(.black)
             }
+            .accessibilityHidden(true)
     }
     
     @ViewBuilder
@@ -153,7 +158,7 @@ struct RoomDetailsEditScreen_Previews: PreviewProvider, TestablePreview {
                                                   members: [.mockMeAdmin]))
         
         return RoomDetailsEditScreenViewModel(roomProxy: roomProxy,
-                                              mediaProvider: MediaProviderMock(configuration: .init()),
+                                              userSession: UserSessionMock(.init()),
                                               mediaUploadingPreprocessor: MediaUploadingPreprocessor(appSettings: ServiceLocator.shared.settings),
                                               userIndicatorController: UserIndicatorControllerMock.default)
     }()
@@ -164,7 +169,7 @@ struct RoomDetailsEditScreen_Previews: PreviewProvider, TestablePreview {
                                                   members: [.mockAlice]))
         
         return RoomDetailsEditScreenViewModel(roomProxy: roomProxy,
-                                              mediaProvider: MediaProviderMock(configuration: .init()),
+                                              userSession: UserSessionMock(.init()),
                                               mediaUploadingPreprocessor: MediaUploadingPreprocessor(appSettings: ServiceLocator.shared.settings),
                                               userIndicatorController: UserIndicatorControllerMock.default)
     }()

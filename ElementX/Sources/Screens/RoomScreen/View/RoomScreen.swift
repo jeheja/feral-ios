@@ -1,5 +1,6 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
 // SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 // Please see LICENSE files in the repository root for full details.
@@ -10,50 +11,48 @@ import SwiftUI
 import WysiwygComposer
 
 struct RoomScreen: View {
-    @ObservedObject var roomContext: RoomScreenViewModel.Context
-    @ObservedObject var timelineContext: TimelineViewModel.Context
-    @ObservedObject private var composerToolbarContext: ComposerToolbarViewModel.Context
-    @State private var dragOver = false
+    @ObservedObject private var context: RoomScreenViewModelType.Context
+    @ObservedObject private var timelineContext: TimelineViewModelType.Context
     let composerToolbar: ComposerToolbar
+    @Environment(\.accessibilityVoiceOverEnabled) private var isVoiceOverEnabled
 
-    init(roomViewModel: RoomScreenViewModelProtocol,
-         timelineViewModel: TimelineViewModelProtocol,
+    init(context: RoomScreenViewModelType.Context,
+         timelineContext: TimelineViewModelType.Context,
          composerToolbar: ComposerToolbar) {
-        roomContext = roomViewModel.context
-        timelineContext = timelineViewModel.context
+        self.context = context
+        self.timelineContext = timelineContext
         self.composerToolbar = composerToolbar
-        composerToolbarContext = composerToolbar.context
     }
 
     var body: some View {
         TimelineView(timelineContext: timelineContext)
             .overlay(alignment: .bottomTrailing) {
-                scrollToBottomButton
+                TimelineScrollToBottomButton(isVisible: isAtBottomAndLive) {
+                    timelineContext.send(viewAction: .scrollToBottom)
+                }
+                .accessibilityIdentifier(A11yIdentifiers.roomScreen.scrollToBottom)
             }
             .background(Color.compound.bgCanvasDefault.ignoresSafeArea())
-            .overlay(alignment: .top) {
-                pinnedItemsBanner
-            }
+            .topBanner(pinnedItemsBanner, isVisible: context.viewState.shouldShowPinnedEventsBanner && !isVoiceOverEnabled)
             // This can overlay on top of the pinnedItemsBanner
-            .overlay(alignment: .top) {
-                knockRequestsBanner
+            .topBanner(knockRequestsBanner, isVisible: context.viewState.shouldSeeKnockRequests)
+            .safeAreaInset(edge: .top) {
+                // When VoiceOver is enabled, the table view isn't reversed and the scroll gestures
+                // don't trigger meaning the banner never hides itself and so the .overlay layout
+                // above permanently obscures the top of the timeline. So whenever VoiceOver is
+                // enabled we use a safe area inset to vertically stack it above the timeline.
+                if context.viewState.shouldShowPinnedEventsBanner, isVoiceOverEnabled {
+                    pinnedItemsBanner
+                }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 0) {
-                    RoomScreenFooterView(details: roomContext.viewState.footerDetails,
-                                         mediaProvider: roomContext.mediaProvider) { action in
-                        roomContext.send(viewAction: .footerViewAction(action))
+                    RoomScreenFooterView(details: context.viewState.footerDetails,
+                                         mediaProvider: context.mediaProvider) { action in
+                        context.send(viewAction: .footerViewAction(action))
                     }
                     
                     composer
-                        .padding(.bottom, composerToolbarContext.composerFormattingEnabled ? 8 : 12)
-                        .background {
-                            if composerToolbarContext.composerFormattingEnabled {
-                                RoundedRectangle(cornerRadius: 20)
-                                    .stroke(Color.compound.borderInteractiveSecondary, lineWidth: 0.5)
-                                    .ignoresSafeArea()
-                            }
-                        }
                         .padding(.top, 8)
                         .background(Color.compound.bgCanvasDefault.ignoresSafeArea())
                         .environmentObject(timelineContext)
@@ -62,87 +61,44 @@ struct RoomScreen: View {
                         .environment(\.shouldAutomaticallyLoadImages, !timelineContext.viewState.hideTimelineMedia)
                 }
             }
+            .toolbarRole(RoomHeaderView.toolbarRole)
             .navigationTitle(L10n.screenRoomTitle) // Hidden but used for back button text.
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarHidden(isNavigationBarHidden)
             .toolbar { toolbar }
             .toolbarBackground(.visible, for: .navigationBar) // Fix the toolbar's background.
             .overlay { loadingIndicator }
-            .timelineMediaPreview(viewModel: $roomContext.mediaPreviewViewModel)
+            .timelineMediaPreview(viewModel: $context.mediaPreviewViewModel)
             .track(screen: .Room)
-            .onDrop(of: ["public.item", "public.file-url"], isTargeted: $dragOver) { providers -> Bool in
-                guard let provider = providers.first,
-                      provider.isSupportedForPasteOrDrop else {
-                    return false
-                }
-                
-                timelineContext.send(viewAction: .handlePasteOrDrop(provider: provider))
-                return true
-            }
             .sentryTrace("\(Self.self)")
     }
     
     @ViewBuilder
     private var pinnedItemsBanner: some View {
-        Group {
-            if roomContext.viewState.shouldShowPinnedEventsBanner {
-                PinnedItemsBannerView(state: roomContext.viewState.pinnedEventsBannerState,
-                                      onMainButtonTap: { roomContext.send(viewAction: .tappedPinnedEventsBanner) },
-                                      onViewAllButtonTap: { roomContext.send(viewAction: .viewAllPins) })
-                    .transition(.move(edge: .top))
-            }
-        }
-        .animation(.elementDefault, value: roomContext.viewState.shouldShowPinnedEventsBanner)
+        PinnedItemsBannerView(state: context.viewState.pinnedEventsBannerState,
+                              onMainButtonTap: { context.send(viewAction: .tappedPinnedEventsBanner) },
+                              onViewAllButtonTap: { context.send(viewAction: .viewAllPins) })
     }
     
     @ViewBuilder
     private var knockRequestsBanner: some View {
-        Group {
-            if roomContext.viewState.shouldSeeKnockRequests {
-                KnockRequestsBannerView(requests: roomContext.viewState.displayedKnockRequests,
-                                        onDismiss: dismissKnockRequestsBanner,
-                                        onAccept: roomContext.viewState.canAcceptKnocks ? acceptKnockRequest : nil,
-                                        onViewAll: onViewAllKnockRequests,
-                                        mediaProvider: roomContext.mediaProvider)
-                    .padding(.top, 16)
-                    .transition(.move(edge: .top))
-            }
-        }
-        .animation(.elementDefault, value: roomContext.viewState.shouldSeeKnockRequests)
+        KnockRequestsBannerView(requests: context.viewState.displayedKnockRequests,
+                                onDismiss: dismissKnockRequestsBanner,
+                                onAccept: context.viewState.canAcceptKnocks ? acceptKnockRequest : nil,
+                                onViewAll: onViewAllKnockRequests,
+                                mediaProvider: context.mediaProvider)
+            .padding(.top, 16)
     }
     
     private func dismissKnockRequestsBanner() {
-        roomContext.send(viewAction: .dismissKnockRequests)
+        context.send(viewAction: .dismissKnockRequests)
     }
     
     private func acceptKnockRequest(eventID: String) {
-        roomContext.send(viewAction: .acceptKnock(eventID: eventID))
+        context.send(viewAction: .acceptKnock(eventID: eventID))
     }
     
     private func onViewAllKnockRequests() {
-        roomContext.send(viewAction: .viewKnockRequests)
-    }
-    
-    private var scrollToBottomButton: some View {
-        Button { timelineContext.send(viewAction: .scrollToBottom) } label: {
-            Image(systemName: "chevron.down")
-                .font(.compound.bodyLG)
-                .fontWeight(.semibold)
-                .foregroundColor(.compound.iconSecondary)
-                .padding(13)
-                .offset(y: 1)
-                .background {
-                    Circle()
-                        .fill(Color.compound.iconOnSolidPrimary)
-                        // Intentionally using system primary colour to get white/black.
-                        .shadow(color: .primary.opacity(0.33), radius: 2.0)
-                }
-                .padding()
-        }
-        .opacity(isAtBottomAndLive ? 0.0 : 1.0)
-        .accessibilityHidden(isAtBottomAndLive)
-        .animation(.elementDefault, value: isAtBottomAndLive)
-        .accessibilityIdentifier(A11yIdentifiers.roomScreen.scrollToBottom)
+        context.send(viewAction: .viewKnockRequests)
     }
     
     private var isAtBottomAndLive: Bool {
@@ -151,15 +107,36 @@ struct RoomScreen: View {
     
     @ViewBuilder
     private var composer: some View {
-        if roomContext.viewState.canSendMessage {
+        if context.viewState.hasSuccessor {
+            tombstonedDialogue
+        } else if context.viewState.canSendMessage, !ProcessInfo.isRunningAccessibilityTests {
+            // We are not sure why but when wrapped in the room screen the composer toolbar breaks the accessibility tests
             composerToolbar
         } else {
-            Text(L10n.screenRoomTimelineNoPermissionToPost)
-                .font(.compound.bodyLG)
-                .foregroundStyle(.compound.textDisabled)
-                .multilineTextAlignment(.center)
-                .padding(.vertical, 10) // Matches the MessageComposerStyleModifier
+            ComposerDisabledView()
         }
+    }
+    
+    private var tombstonedDialogue: some View {
+        VStack(spacing: 16) {
+            Text(L10n.screenRoomTimelineTombstonedRoomMessage)
+                .font(.compound.bodyMD)
+                .foregroundStyle(.compound.textPrimary)
+            
+            Button {
+                context.send(viewAction: .displaySuccessorRoom)
+            } label: {
+                Text(L10n.screenRoomTimelineTombstonedRoomAction)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.compound(.primary, size: .medium))
+        }
+        .padding(.top, 16)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 12)
+        .highlight(gradient: .compound.info,
+                   borderColor: .compound.borderInfoSubtle,
+                   backgroundColor: .compound.bgCanvasDefault)
     }
     
     @ViewBuilder
@@ -179,22 +156,22 @@ struct RoomScreen: View {
         // .principal + .primaryAction works better than .navigation leading + trailing
         // as the latter disables interaction in the action button for rooms with long names
         ToolbarItem(placement: .principal) {
-            RoomHeaderView(roomName: roomContext.viewState.roomTitle,
-                           roomAvatar: roomContext.viewState.roomAvatar,
-                           dmRecipientVerificationState: roomContext.viewState.dmRecipientVerificationState,
-                           mediaProvider: roomContext.mediaProvider)
+            RoomHeaderView(roomName: context.viewState.roomTitle,
+                           roomAvatar: context.viewState.roomAvatar,
+                           dmRecipientVerificationState: context.viewState.dmRecipientVerificationState,
+                           mediaProvider: context.mediaProvider)
                 // Using a button stops it from getting truncated in the navigation bar
                 .contentShape(.rect)
                 .onTapGesture {
-                    roomContext.send(viewAction: .displayRoomDetails)
+                    context.send(viewAction: .displayRoomDetails)
                 }
         }
         
         if !ProcessInfo.processInfo.isiOSAppOnMac {
             ToolbarItem(placement: .primaryAction) {
-                if roomContext.viewState.shouldShowCallButton {
+                if context.viewState.shouldShowCallButton {
                     callButton
-                        .disabled(!roomContext.viewState.canJoinCall)
+                        .disabled(!context.viewState.canJoinCall)
                 }
             }
         }
@@ -202,9 +179,9 @@ struct RoomScreen: View {
     
     @ViewBuilder
     private var callButton: some View {
-        if roomContext.viewState.hasOngoingCall {
+        if context.viewState.hasOngoingCall {
             Button {
-                roomContext.send(viewAction: .displayCall)
+                context.send(viewAction: .displayCall)
             } label: {
                 Label(L10n.actionJoin, icon: \.videoCallSolid)
                     .labelStyle(.titleAndIcon)
@@ -214,17 +191,13 @@ struct RoomScreen: View {
             .accessibilityIdentifier(A11yIdentifiers.roomScreen.joinCall)
         } else {
             Button {
-                roomContext.send(viewAction: .displayCall)
+                context.send(viewAction: .displayCall)
             } label: {
                 CompoundIcon(\.videoCallSolid)
             }
             .accessibilityLabel(L10n.a11yStartCall)
             .accessibilityIdentifier(A11yIdentifiers.roomScreen.joinCall)
         }
-    }
-    
-    private var isNavigationBarHidden: Bool {
-        composerToolbarContext.composerFormattingEnabled && composerToolbarContext.composerExpanded && UIDevice.current.userInterfaceIdiom == .pad
     }
 }
 
@@ -233,42 +206,51 @@ struct RoomScreen: View {
 struct RoomScreen_Previews: PreviewProvider, TestablePreview {
     static let viewModels = makeViewModels()
     static let readOnlyViewModels = makeViewModels(canSendMessage: false)
+    static let tombstonedViewModels = makeViewModels(hasSuccessor: true)
 
     static var previews: some View {
         NavigationStack {
-            RoomScreen(roomViewModel: viewModels.room,
-                       timelineViewModel: viewModels.timeline,
+            RoomScreen(context: viewModels.room.context,
+                       timelineContext: viewModels.timeline.context,
                        composerToolbar: ComposerToolbar.mock())
         }
         .previewDisplayName("Normal")
         
         NavigationStack {
-            RoomScreen(roomViewModel: readOnlyViewModels.room,
-                       timelineViewModel: readOnlyViewModels.timeline,
+            RoomScreen(context: readOnlyViewModels.room.context,
+                       timelineContext: readOnlyViewModels.timeline.context,
                        composerToolbar: ComposerToolbar.mock())
         }
         .previewDisplayName("Read-only")
         .snapshotPreferences(expect: readOnlyViewModels.room.context.$viewState.map { !$0.canSendMessage })
+        
+        NavigationStack {
+            RoomScreen(context: tombstonedViewModels.room.context,
+                       timelineContext: tombstonedViewModels.timeline.context,
+                       composerToolbar: ComposerToolbar.mock())
+        }
+        .previewDisplayName("Tombstoned")
+        .snapshotPreferences(expect: tombstonedViewModels.room.context.$viewState.map(\.hasSuccessor))
     }
     
-    static func makeViewModels(canSendMessage: Bool = true) -> ViewModels {
+    static func makeViewModels(canSendMessage: Bool = true, hasSuccessor: Bool = false) -> ViewModels {
         let roomProxyMock = JoinedRoomProxyMock(.init(id: "stable_id",
                                                       name: "Preview room",
                                                       hasOngoingCall: true,
-                                                      canUserSendMessage: canSendMessage))
+                                                      successor: hasSuccessor ? .init(roomId: UUID().uuidString, reason: nil) : nil,
+                                                      powerLevelsConfiguration: .init(canUserSendMessage: canSendMessage)))
         let roomViewModel = RoomScreenViewModel.mock(roomProxyMock: roomProxyMock)
         let timelineViewModel = TimelineViewModel(roomProxy: roomProxyMock,
                                                   timelineController: MockTimelineController(),
-                                                  mediaProvider: MediaProviderMock(configuration: .init()),
+                                                  userSession: UserSessionMock(.init()),
                                                   mediaPlayerProvider: MediaPlayerProviderMock(),
-                                                  voiceMessageMediaManager: VoiceMessageMediaManagerMock(),
                                                   userIndicatorController: ServiceLocator.shared.userIndicatorController,
                                                   appMediator: AppMediatorMock.default,
                                                   appSettings: ServiceLocator.shared.settings,
                                                   analyticsService: ServiceLocator.shared.analytics,
                                                   emojiProvider: EmojiProvider(appSettings: ServiceLocator.shared.settings),
-                                                  timelineControllerFactory: TimelineControllerFactoryMock(.init()),
-                                                  clientProxy: ClientProxyMock(.init()))
+                                                  linkMetadataProvider: LinkMetadataProvider(),
+                                                  timelineControllerFactory: TimelineControllerFactoryMock(.init()))
         
         return .init(room: roomViewModel, timeline: timelineViewModel)
     }

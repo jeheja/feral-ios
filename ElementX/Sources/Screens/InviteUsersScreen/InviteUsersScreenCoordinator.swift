@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -9,19 +10,16 @@ import Combine
 import SwiftUI
 
 struct InviteUsersScreenCoordinatorParameters {
-    let clientProxy: ClientProxyProtocol
-    let selectedUsers: CurrentValuePublisher<[UserProfileProxy], Never>
-    let roomType: InviteUsersScreenRoomType
-    let mediaProvider: MediaProviderProtocol
+    let userSession: UserSessionProtocol
+    let roomProxy: JoinedRoomProxyProtocol
+    let isSkippable: Bool
     let userDiscoveryService: UserDiscoveryServiceProtocol
     let userIndicatorController: UserIndicatorControllerProtocol
+    let appSettings: AppSettings
 }
 
 enum InviteUsersScreenCoordinatorAction {
-    case cancel
-    case proceed
-    case invite(users: [String])
-    case toggleUser(UserProfileProxy)
+    case dismiss
 }
 
 final class InviteUsersScreenCoordinator: CoordinatorProtocol {
@@ -34,26 +32,20 @@ final class InviteUsersScreenCoordinator: CoordinatorProtocol {
     }
     
     init(parameters: InviteUsersScreenCoordinatorParameters) {
-        viewModel = InviteUsersScreenViewModel(clientProxy: parameters.clientProxy,
-                                               selectedUsers: parameters.selectedUsers,
-                                               roomType: parameters.roomType,
-                                               mediaProvider: parameters.mediaProvider,
+        viewModel = InviteUsersScreenViewModel(userSession: parameters.userSession,
+                                               roomProxy: parameters.roomProxy,
+                                               isSkippable: parameters.isSkippable,
                                                userDiscoveryService: parameters.userDiscoveryService,
-                                               userIndicatorController: parameters.userIndicatorController)
+                                               userIndicatorController: parameters.userIndicatorController,
+                                               appSettings: parameters.appSettings)
     }
     
     func start() {
         viewModel.actions.sink { [weak self] action in
             guard let self else { return }
             switch action {
-            case .cancel:
-                actionsSubject.send(.cancel)
-            case .proceed:
-                actionsSubject.send(.proceed)
-            case .invite(let users):
-                actionsSubject.send(.invite(users: users))
-            case .toggleUser(let user):
-                actionsSubject.send(.toggleUser(user))
+            case .dismiss:
+                actionsSubject.send(.dismiss)
             }
         }
         .store(in: &cancellables)

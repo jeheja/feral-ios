@@ -1,5 +1,6 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
 // SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 // Please see LICENSE files in the repository root for full details.
@@ -8,7 +9,7 @@
 import Combine
 import SwiftUI
 
-typealias MediaEventsTimelineScreenViewModelType = StateStoreViewModel<MediaEventsTimelineScreenViewState, MediaEventsTimelineScreenViewAction>
+typealias MediaEventsTimelineScreenViewModelType = StateStoreViewModelV2<MediaEventsTimelineScreenViewState, MediaEventsTimelineScreenViewAction>
 
 class MediaEventsTimelineScreenViewModel: MediaEventsTimelineScreenViewModelType, MediaEventsTimelineScreenViewModelProtocol {
     private let mediaTimelineViewModel: TimelineViewModelProtocol
@@ -53,18 +54,7 @@ class MediaEventsTimelineScreenViewModel: MediaEventsTimelineScreenViewModelType
         }
         
         super.init(initialViewState: .init(activeTimelineContext: activeTimelineContext, bindings: .init(screenMode: initialScreenMode)), mediaProvider: mediaProvider)
-        
-        context.$viewState.map(\.bindings.screenMode)
-            .removeDuplicates()
-            .map {
-                switch $0 {
-                case .media: mediaTimelineViewModel.context
-                case .files: filesTimelineViewModel.context
-                }
-            }
-            .weakAssign(to: \.state.activeTimelineContext, on: self)
-            .store(in: &cancellables)
-        
+                
         mediaTimelineViewModel.context.$viewState.sink { [weak self] timelineViewState in
             guard let self, state.bindings.screenMode == .media else {
                 return
@@ -75,13 +65,16 @@ class MediaEventsTimelineScreenViewModel: MediaEventsTimelineScreenViewModelType
         .store(in: &cancellables)
         
         mediaTimelineViewModel.actions.sink { [weak self] action in
+            guard let self else { return }
             switch action {
             case .displayMediaPreview(let mediaPreviewViewModel):
-                self?.displayMediaPreview(mediaPreviewViewModel)
+                displayMediaPreview(mediaPreviewViewModel)
+            case .displayMediaDetails(item: let item):
+                displayMediaPreviewSheet(for: item)
             case .displayEmojiPicker, .displayReportContent, .displayCameraPicker, .displayMediaPicker,
                  .displayDocumentPicker, .displayLocationPicker, .displayPollForm, .displayMediaUploadPreviewScreen,
                  .displaySenderDetails, .displayMessageForwarding, .displayLocation, .displayResolveSendFailure,
-                 .displayThread, .composer, .hasScrolled, .viewInRoomTimeline:
+                 .displayThread, .composer, .hasScrolled, .viewInRoomTimeline, .displayRoom:
                 break
             }
         }
@@ -97,13 +90,16 @@ class MediaEventsTimelineScreenViewModel: MediaEventsTimelineScreenViewModelType
         .store(in: &cancellables)
         
         filesTimelineViewModel.actions.sink { [weak self] action in
+            guard let self else { return }
             switch action {
             case .displayMediaPreview(let mediaPreviewViewModel):
-                self?.displayMediaPreview(mediaPreviewViewModel)
+                displayMediaPreview(mediaPreviewViewModel)
+            case .displayMediaDetails(item: let item):
+                displayMediaPreviewSheet(for: item)
             case .displayEmojiPicker, .displayReportContent, .displayCameraPicker, .displayMediaPicker,
                  .displayDocumentPicker, .displayLocationPicker, .displayPollForm, .displayMediaUploadPreviewScreen,
                  .displaySenderDetails, .displayMessageForwarding, .displayLocation, .displayResolveSendFailure,
-                 .displayThread, .composer, .hasScrolled, .viewInRoomTimeline:
+                 .displayThread, .composer, .hasScrolled, .viewInRoomTimeline, .displayRoom:
                 break
             }
         }
@@ -119,6 +115,11 @@ class MediaEventsTimelineScreenViewModel: MediaEventsTimelineScreenViewModelType
         
         switch viewAction {
         case .changedScreenMode:
+            switch state.bindings.screenMode {
+            case .media: state.activeTimelineContext = mediaTimelineViewModel.context
+            case .files: state.activeTimelineContext = filesTimelineViewModel.context
+            }
+            
             updateWithTimelineViewState(activeTimelineViewModel.context.viewState)
         case .oldestItemDidAppear:
             isOldestItemVisible = true
@@ -127,6 +128,8 @@ class MediaEventsTimelineScreenViewModel: MediaEventsTimelineScreenViewModelType
             isOldestItemVisible = false
         case .tappedItem(let item):
             activeTimelineViewModel.context.send(viewAction: .mediaTapped(itemID: item.identifier))
+        case .longPressedItem(let item):
+            activeTimelineViewModel.context.send(viewAction: .displayTimelineItemMenu(itemID: item.identifier))
         }
     }
     
@@ -136,6 +139,31 @@ class MediaEventsTimelineScreenViewModel: MediaEventsTimelineScreenViewModelType
     }
     
     // MARK: - Private
+    
+    private func displayMediaPreviewSheet(for item: EventBasedMessageTimelineItemProtocol) {
+        let sheetModel = TimelineMediaPreviewViewModel(initialItem: item,
+                                                       timelineViewModel: activeTimelineViewModel,
+                                                       mediaProvider: mediaProvider,
+                                                       photoLibraryManager: PhotoLibraryManager(),
+                                                       userIndicatorController: userIndicatorController,
+                                                       appMediator: appMediator)
+        sheetModel.actions.sink { [weak self] action in
+            guard let self else { return }
+            switch action {
+            case .displayMessageForwarding(let forwardingItem):
+                displayMessageForwarding(forwardingItem: forwardingItem)
+            case .viewInRoomTimeline(let itemID):
+                actionsSubject.send(.viewInRoomTimeline(itemID))
+            case .dismiss:
+                state.bindings.mediaPreviewSheetViewModel = nil
+            }
+        }
+        .store(in: &cancellables)
+        
+        // Triggers a download of the item so that can be shared/saved
+        sheetModel.context.send(viewAction: .updateCurrentItem(sheetModel.state.currentItem))
+        state.bindings.mediaPreviewSheetViewModel = sheetModel
+    }
     
     private func updateWithTimelineViewState(_ timelineViewState: TimelineViewState) {
         var newGroups = [MediaEventsTimelineGroup]()
@@ -191,6 +219,8 @@ class MediaEventsTimelineScreenViewModel: MediaEventsTimelineScreenViewModelType
         viewModel.actions.sink { [weak self] action in
             guard let self else { return }
             switch action {
+            case .displayMessageForwarding(let forwardingItem):
+                displayMessageForwarding(forwardingItem: forwardingItem)
             case .viewInRoomTimeline(let itemID):
                 state.bindings.mediaPreviewViewModel = nil
                 actionsSubject.send(.viewInRoomTimeline(itemID))
@@ -208,6 +238,15 @@ class MediaEventsTimelineScreenViewModel: MediaEventsTimelineScreenViewModelType
             L10n.commonDateThisMonth
         } else {
             date.formatted(.dateTime.month(.wide).year())
+        }
+    }
+    
+    private func displayMessageForwarding(forwardingItem: MessageForwardingItem) {
+        state.bindings.mediaPreviewViewModel = nil
+        state.bindings.mediaPreviewSheetViewModel = nil
+        // We need a small delay because we need to wait for the presented sheet to be fully dismissed.
+        DispatchQueue.main.asyncAfter(deadline: .now() + TimelineMediaPreviewViewModel.displayMessageForwardingDelay) {
+            self.actionsSubject.send(.displayMessageForwarding(forwardingItem))
         }
     }
 }

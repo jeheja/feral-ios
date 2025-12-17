@@ -1,7 +1,8 @@
 //
-// Copyright 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2024-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -10,12 +11,14 @@ import Foundation
 @MainActor
 struct TimelineItemMenuActionProvider {
     let timelineItem: RoomTimelineItemProtocol
+    let canCurrentUserSendMessage: Bool
     let canCurrentUserRedactSelf: Bool
     let canCurrentUserRedactOthers: Bool
     let canCurrentUserPin: Bool
     let pinnedEventIDs: Set<String>
     let isDM: Bool
     let isViewSourceEnabled: Bool
+    let areThreadsEnabled: Bool
     let timelineKind: TimelineKind
     let emojiProvider: EmojiProviderProtocol
     
@@ -46,11 +49,17 @@ struct TimelineItemMenuActionProvider {
             actions.append(.endPoll(pollStartID: eventID))
         }
 
-        if item.canBeRepliedTo {
+        if item.canBeRepliedTo, canCurrentUserSendMessage {
             if let messageItem = item as? EventBasedMessageTimelineItemProtocol {
-                actions.append(.reply(isThread: messageItem.properties.isThreaded))
+                // If threads are enabled we will have the dedicated `replyInThread` action
+                // so there is no need to make the normal reply use the thread.
+                actions.append(.reply(isThread: areThreadsEnabled ? false : messageItem.properties.isThreaded))
             } else {
                 actions.append(.reply(isThread: false))
+            }
+            
+            if areThreadsEnabled, !timelineKind.isThread {
+                actions.append(.replyInThread)
             }
         }
         
@@ -58,7 +67,7 @@ struct TimelineItemMenuActionProvider {
             actions.append(.forward(itemID: item.id))
         }
         
-        if item.isEditable {
+        if item.isEditable, canCurrentUserSendMessage {
             if item.supportsMediaCaption {
                 if item.hasMediaCaption {
                     actions.append(.editCaption)
@@ -125,7 +134,7 @@ struct TimelineItemMenuActionProvider {
             secondaryActions = secondaryActions.filter(\.canAppearInRedacted)
         }
         
-        let isReactable = timelineKind == .live || timelineKind == .detached || timelineKind == .thread ? item.isReactable : false
+        let isReactable = timelineKind == .live || timelineKind == .detached || timelineKind.isThread ? item.isReactable : false
 
         return .init(isReactable: isReactable, actions: actions, secondaryActions: secondaryActions, emojiProvider: emojiProvider)
     }

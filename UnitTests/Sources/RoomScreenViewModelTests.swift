@@ -1,7 +1,8 @@
 //
-// Copyright 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2024-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -21,12 +22,13 @@ class RoomScreenViewModelTests: XCTestCase {
     
     override func tearDown() {
         viewModel = nil
+        AppSettings.resetAllSettings()
     }
     
     func testPinnedEventsBanner() async throws {
         var configuration = JoinedRoomProxyMockConfiguration()
         let timelineSubject = PassthroughSubject<TimelineProxyProtocol, Never>()
-        let infoSubject = CurrentValueSubject<RoomInfoProxy, Never>(.init(roomInfo: RoomInfo(configuration)))
+        let infoSubject = CurrentValueSubject<RoomInfoProxyProtocol, Never>(RoomInfoProxyMock(configuration))
         let roomProxyMock = JoinedRoomProxyMock(configuration)
         // setup a way to inject the mock of the pinned events timeline
         roomProxyMock.pinnedEventsTimelineClosure = {
@@ -38,13 +40,12 @@ class RoomScreenViewModelTests: XCTestCase {
         }
         // setup the room proxy actions publisher
         roomProxyMock.underlyingInfoPublisher = infoSubject.asCurrentValuePublisher()
-        let viewModel = RoomScreenViewModel(clientProxy: ClientProxyMock(),
+        let viewModel = RoomScreenViewModel(userSession: UserSessionMock(.init()),
                                             roomProxy: roomProxyMock,
                                             initialSelectedPinnedEventID: nil,
-                                            mediaProvider: MediaProviderMock(configuration: .init()),
                                             ongoingCallRoomIDPublisher: .init(.init(nil)),
-                                            appMediator: AppMediatorMock.default,
                                             appSettings: ServiceLocator.shared.settings,
+                                            appHooks: AppHooks(),
                                             analyticsService: ServiceLocator.shared.analytics,
                                             userIndicatorController: ServiceLocator.shared.userIndicatorController)
         self.viewModel = viewModel
@@ -62,7 +63,7 @@ class RoomScreenViewModelTests: XCTestCase {
             viewState.pinnedEventsBannerState.count == 2
         }
         configuration.pinnedEventIDs = ["test1", "test2"]
-        infoSubject.send(.init(roomInfo: RoomInfo(configuration)))
+        infoSubject.send(RoomInfoProxyMock(configuration))
         try await deferred.fulfill()
         XCTAssertTrue(viewModel.context.viewState.pinnedEventsBannerState.isLoading)
         XCTAssertTrue(viewModel.context.viewState.shouldShowPinnedEventsBanner)
@@ -109,6 +110,7 @@ class RoomScreenViewModelTests: XCTestCase {
     
     func testPinnedEventsBannerSelection() async throws {
         let roomProxyMock = JoinedRoomProxyMock(.init())
+        roomProxyMock.loadOrFetchEventDetailsForReturnValue = .success(TimelineEventSDKMock())
         // setup a way to inject the mock of the pinned events timeline
         let pinnedTimelineMock = TimelineProxyMock()
         let pinnedTimelineItemProviderMock = TimelineItemProviderMock()
@@ -118,13 +120,12 @@ class RoomScreenViewModelTests: XCTestCase {
                                                       .event(.init(item: EventTimelineItem(configuration: .init(eventID: "test2")), uniqueID: .init("2"))),
                                                       .event(.init(item: EventTimelineItem(configuration: .init(eventID: "test3")), uniqueID: .init("3")))]
         roomProxyMock.pinnedEventsTimelineReturnValue = .success(pinnedTimelineMock)
-        let viewModel = RoomScreenViewModel(clientProxy: ClientProxyMock(),
+        let viewModel = RoomScreenViewModel(userSession: UserSessionMock(.init()),
                                             roomProxy: roomProxyMock,
                                             initialSelectedPinnedEventID: "test1",
-                                            mediaProvider: MediaProviderMock(configuration: .init()),
                                             ongoingCallRoomIDPublisher: .init(.init(nil)),
-                                            appMediator: AppMediatorMock.default,
                                             appSettings: ServiceLocator.shared.settings,
+                                            appHooks: AppHooks(),
                                             analyticsService: ServiceLocator.shared.analytics,
                                             userIndicatorController: ServiceLocator.shared.userIndicatorController)
         self.viewModel = viewModel
@@ -161,45 +162,111 @@ class RoomScreenViewModelTests: XCTestCase {
         try await deferred.fulfill()
     }
     
-    func testRoomInfoUpdate() async throws {
-        var configuration = JoinedRoomProxyMockConfiguration(id: "TestID", name: "StartingName", avatarURL: nil, hasOngoingCall: false)
-        let infoSubject = CurrentValueSubject<RoomInfoProxy, Never>(.init(roomInfo: RoomInfo(configuration)))
-        let roomProxyMock = JoinedRoomProxyMock(configuration)
-        // setup the room proxy actions publisher
-        roomProxyMock.canUserJoinCallUserIDReturnValue = .success(false)
-        roomProxyMock.underlyingInfoPublisher = infoSubject.asCurrentValuePublisher()
-        let viewModel = RoomScreenViewModel(clientProxy: ClientProxyMock(),
+    func testPinnedEventsBannerThreadedSelection() async throws {
+        ServiceLocator.shared.settings.threadsEnabled = true
+        
+        let roomProxyMock = JoinedRoomProxyMock(.init())
+        let eventMock = TimelineEventSDKMock()
+        eventMock.threadRootEventIdReturnValue = "thread"
+        roomProxyMock.loadOrFetchEventDetailsForReturnValue = .success(eventMock)
+        
+        // setup a way to inject the mock of the pinned events timeline
+        let pinnedTimelineMock = TimelineProxyMock()
+        let pinnedTimelineItemProviderMock = TimelineItemProviderMock()
+        pinnedTimelineMock.timelineItemProvider = pinnedTimelineItemProviderMock
+        pinnedTimelineItemProviderMock.underlyingUpdatePublisher = Empty<([TimelineItemProxy], PaginationState), Never>().eraseToAnyPublisher()
+        pinnedTimelineItemProviderMock.itemProxies = [.event(.init(item: EventTimelineItem(configuration: .init(eventID: "test1")), uniqueID: .init("1"))),
+                                                      .event(.init(item: EventTimelineItem(configuration: .init(eventID: "test2")), uniqueID: .init("2"))),
+                                                      .event(.init(item: EventTimelineItem(configuration: .init(eventID: "test3")), uniqueID: .init("3")))]
+        roomProxyMock.pinnedEventsTimelineReturnValue = .success(pinnedTimelineMock)
+        
+        let viewModel = RoomScreenViewModel(userSession: UserSessionMock(.init()),
                                             roomProxy: roomProxyMock,
-                                            initialSelectedPinnedEventID: nil,
-                                            mediaProvider: MediaProviderMock(configuration: .init()),
+                                            initialSelectedPinnedEventID: "test1",
                                             ongoingCallRoomIDPublisher: .init(.init(nil)),
-                                            appMediator: AppMediatorMock.default,
                                             appSettings: ServiceLocator.shared.settings,
+                                            appHooks: AppHooks(),
                                             analyticsService: ServiceLocator.shared.analytics,
                                             userIndicatorController: ServiceLocator.shared.userIndicatorController)
         self.viewModel = viewModel
         
+        // check if the banner is now in a loaded state and is showing the counter
         var deferred = deferFulfillment(viewModel.context.$viewState) { viewState in
-            viewState.roomTitle == "StartingName" &&
-                viewState.roomAvatar == .room(id: "TestID", name: "StartingName", avatarURL: nil) &&
-                !viewState.canJoinCall &&
-                !viewState.hasOngoingCall
+            !viewState.pinnedEventsBannerState.isLoading
         }
         try await deferred.fulfill()
+        XCTAssertEqual(viewModel.context.viewState.pinnedEventsBannerState.count, 3)
+        XCTAssertTrue(viewModel.context.viewState.shouldShowPinnedEventsBanner)
+        // And that is actually displaying the `initialSelectedPinEventID` which is gthe first one in the list
+        XCTAssertEqual(viewModel.context.viewState.pinnedEventsBannerState.selectedPinnedIndex, 0)
         
-        configuration.name = "NewName"
-        configuration.avatarURL = .mockMXCAvatar
-        configuration.hasOngoingCall = true
-        roomProxyMock.canUserJoinCallUserIDReturnValue = .success(true)
-        
+        // check if the banner scrolls when tapping the previous pin
         deferred = deferFulfillment(viewModel.context.$viewState) { viewState in
+            viewState.pinnedEventsBannerState.selectedPinnedIndex == 2
+        }
+        let deferredAction1 = deferFulfillment(viewModel.actions) { action in
+            if case let .focusEvent(threadRootEventID) = action {
+                return threadRootEventID == "thread"
+            }
+            return false
+        }
+        let deferredAction2 = deferFulfillment(viewModel.actions) { action in
+            if case let .displayThread(threadRootEventID, focussedEventID) = action {
+                return threadRootEventID == "thread" && focussedEventID == "test1"
+            }
+            return false
+        }
+        
+        viewModel.context.send(viewAction: .tappedPinnedEventsBanner)
+        try await deferred.fulfill()
+        try await deferredAction1.fulfill()
+        try await deferredAction2.fulfill()
+    }
+    
+    func testRoomInfoUpdate() async throws {
+        var configuration = JoinedRoomProxyMockConfiguration(id: "TestID", name: "StartingName", avatarURL: nil, hasOngoingCall: false)
+        let roomProxyMock = JoinedRoomProxyMock(configuration)
+        
+        let powerLevelsMock = RoomPowerLevelsProxyMock(configuration: .init())
+        powerLevelsMock.canUserJoinCallUserIDReturnValue = .success(false)
+        powerLevelsMock.canOwnUserJoinCallReturnValue = false
+        roomProxyMock.powerLevelsReturnValue = .success(powerLevelsMock)
+        
+        let roomInfoProxyMock = RoomInfoProxyMock(configuration)
+        roomInfoProxyMock.powerLevels = powerLevelsMock
+        
+        let infoSubject = CurrentValueSubject<RoomInfoProxyProtocol, Never>(roomInfoProxyMock)
+        roomProxyMock.underlyingInfoPublisher = infoSubject.asCurrentValuePublisher()
+        
+        let viewModel = RoomScreenViewModel(userSession: UserSessionMock(.init()),
+                                            roomProxy: roomProxyMock,
+                                            initialSelectedPinnedEventID: nil,
+                                            ongoingCallRoomIDPublisher: .init(.init(nil)),
+                                            appSettings: ServiceLocator.shared.settings,
+                                            appHooks: AppHooks(),
+                                            analyticsService: ServiceLocator.shared.analytics,
+                                            userIndicatorController: ServiceLocator.shared.userIndicatorController)
+        self.viewModel = viewModel
+        
+        XCTAssertEqual(viewModel.state.roomTitle, "StartingName")
+        XCTAssertEqual(viewModel.state.roomAvatar, .room(id: "TestID", name: "StartingName", avatarURL: nil))
+        XCTAssertFalse(viewModel.state.canJoinCall)
+        XCTAssertFalse(viewModel.state.hasOngoingCall)
+                
+        let deferred = deferFulfillment(viewModel.context.$viewState) { viewState in
             viewState.roomTitle == "NewName" &&
                 viewState.roomAvatar == .room(id: "TestID", name: "NewName", avatarURL: .mockMXCAvatar) &&
                 viewState.canJoinCall &&
                 viewState.hasOngoingCall
         }
         
-        infoSubject.send(.init(roomInfo: RoomInfo(configuration)))
+        configuration.name = "NewName"
+        configuration.avatarURL = .mockMXCAvatar
+        configuration.hasOngoingCall = true
+        powerLevelsMock.canUserJoinCallUserIDReturnValue = .success(true)
+        
+        infoSubject.send(RoomInfoProxyMock(configuration))
+        
         try await deferred.fulfill()
     }
     
@@ -207,13 +274,12 @@ class RoomScreenViewModelTests: XCTestCase {
         // Given a room screen with no ongoing call.
         let ongoingCallRoomIDSubject = CurrentValueSubject<String?, Never>(nil)
         let roomProxyMock = JoinedRoomProxyMock(.init(id: "MyRoomID"))
-        let viewModel = RoomScreenViewModel(clientProxy: ClientProxyMock(),
+        let viewModel = RoomScreenViewModel(userSession: UserSessionMock(.init()),
                                             roomProxy: roomProxyMock,
                                             initialSelectedPinnedEventID: nil,
-                                            mediaProvider: MediaProviderMock(configuration: .init()),
                                             ongoingCallRoomIDPublisher: ongoingCallRoomIDSubject.asCurrentValuePublisher(),
-                                            appMediator: AppMediatorMock.default,
                                             appSettings: ServiceLocator.shared.settings,
+                                            appHooks: AppHooks(),
                                             analyticsService: ServiceLocator.shared.analytics,
                                             userIndicatorController: ServiceLocator.shared.userIndicatorController)
         self.viewModel = viewModel
@@ -244,6 +310,27 @@ class RoomScreenViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.state.shouldShowCallButton)
     }
     
+    func testRoomFullyRead() async {
+        let expectation = XCTestExpectation(description: "Wait for fully read")
+        let roomProxyMock = JoinedRoomProxyMock(.init(id: "MyRoomID"))
+        roomProxyMock.markAsReadReceiptTypeClosure = { readReceiptType in
+            XCTAssertEqual(readReceiptType, .fullyRead)
+            expectation.fulfill()
+            return .success(())
+        }
+        let viewModel = RoomScreenViewModel(userSession: UserSessionMock(.init()),
+                                            roomProxy: roomProxyMock,
+                                            initialSelectedPinnedEventID: nil,
+                                            ongoingCallRoomIDPublisher: .init(.init(nil)),
+                                            appSettings: ServiceLocator.shared.settings,
+                                            appHooks: AppHooks(),
+                                            analyticsService: ServiceLocator.shared.analytics,
+                                            userIndicatorController: ServiceLocator.shared.userIndicatorController)
+        self.viewModel = viewModel
+        viewModel.stop()
+        await fulfillment(of: [expectation])
+    }
+    
     // MARK: - Knock Requests
     
     func testKnockRequestBanner() async throws {
@@ -252,13 +339,12 @@ class RoomScreenViewModelTests: XCTestCase {
                                                                                    // This one should be filtered
                                                                                    KnockRequestProxyMock(.init(eventID: "2", userID: "@bob:matrix.org", isSeen: true))]),
                                                       joinRule: .knock))
-        let viewModel = RoomScreenViewModel(clientProxy: ClientProxyMock(),
+        let viewModel = RoomScreenViewModel(userSession: UserSessionMock(.init()),
                                             roomProxy: roomProxyMock,
                                             initialSelectedPinnedEventID: nil,
-                                            mediaProvider: MediaProviderMock(configuration: .init()),
                                             ongoingCallRoomIDPublisher: .init(.init(nil)),
-                                            appMediator: AppMediatorMock.default,
                                             appSettings: ServiceLocator.shared.settings,
+                                            appHooks: AppHooks(),
                                             analyticsService: ServiceLocator.shared.analytics,
                                             userIndicatorController: ServiceLocator.shared.userIndicatorController)
         self.viewModel = viewModel
@@ -287,13 +373,12 @@ class RoomScreenViewModelTests: XCTestCase {
                                                                                    // This one should be filtered
                                                                                    KnockRequestProxyMock(.init(eventID: "2", userID: "@bob:matrix.org"))]),
                                                       joinRule: .knock))
-        let viewModel = RoomScreenViewModel(clientProxy: ClientProxyMock(),
+        let viewModel = RoomScreenViewModel(userSession: UserSessionMock(.init()),
                                             roomProxy: roomProxyMock,
                                             initialSelectedPinnedEventID: nil,
-                                            mediaProvider: MediaProviderMock(configuration: .init()),
                                             ongoingCallRoomIDPublisher: .init(.init(nil)),
-                                            appMediator: AppMediatorMock.default,
                                             appSettings: ServiceLocator.shared.settings,
+                                            appHooks: AppHooks(),
                                             analyticsService: ServiceLocator.shared.analytics,
                                             userIndicatorController: ServiceLocator.shared.userIndicatorController)
         self.viewModel = viewModel
@@ -317,13 +402,12 @@ class RoomScreenViewModelTests: XCTestCase {
         ServiceLocator.shared.settings.knockingEnabled = true
         let roomProxyMock = JoinedRoomProxyMock(.init(knockRequestsState: .loading,
                                                       joinRule: .knock))
-        let viewModel = RoomScreenViewModel(clientProxy: ClientProxyMock(),
+        let viewModel = RoomScreenViewModel(userSession: UserSessionMock(.init()),
                                             roomProxy: roomProxyMock,
                                             initialSelectedPinnedEventID: nil,
-                                            mediaProvider: MediaProviderMock(configuration: .init()),
                                             ongoingCallRoomIDPublisher: .init(.init(nil)),
-                                            appMediator: AppMediatorMock.default,
                                             appSettings: ServiceLocator.shared.settings,
+                                            appHooks: AppHooks(),
                                             analyticsService: ServiceLocator.shared.analytics,
                                             userIndicatorController: ServiceLocator.shared.userIndicatorController)
         self.viewModel = viewModel
@@ -336,15 +420,14 @@ class RoomScreenViewModelTests: XCTestCase {
     func testKnockRequestsBannerDoesNotAppearIfUserHasNoPermission() async throws {
         ServiceLocator.shared.settings.knockingEnabled = true
         let roomProxyMock = JoinedRoomProxyMock(.init(knockRequestsState: .loaded([KnockRequestProxyMock(.init(eventID: "1", userID: "@alice:matrix.org", displayName: "Alice", reason: "Hello World!"))]),
-                                                      canUserInvite: false,
-                                                      joinRule: .knock))
-        let viewModel = RoomScreenViewModel(clientProxy: ClientProxyMock(),
+                                                      joinRule: .knock,
+                                                      powerLevelsConfiguration: .init(canUserInvite: false)))
+        let viewModel = RoomScreenViewModel(userSession: UserSessionMock(.init()),
                                             roomProxy: roomProxyMock,
                                             initialSelectedPinnedEventID: nil,
-                                            mediaProvider: MediaProviderMock(configuration: .init()),
                                             ongoingCallRoomIDPublisher: .init(.init(nil)),
-                                            appMediator: AppMediatorMock.default,
                                             appSettings: ServiceLocator.shared.settings,
+                                            appHooks: AppHooks(),
                                             analyticsService: ServiceLocator.shared.analytics,
                                             userIndicatorController: ServiceLocator.shared.userIndicatorController)
         self.viewModel = viewModel

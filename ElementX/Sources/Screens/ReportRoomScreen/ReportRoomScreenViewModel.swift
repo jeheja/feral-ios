@@ -1,14 +1,15 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
 import Combine
 import SwiftUI
 
-typealias ReportRoomScreenViewModelType = StateStoreViewModel<ReportRoomScreenViewState, ReportRoomScreenViewAction>
+typealias ReportRoomScreenViewModelType = StateStoreViewModelV2<ReportRoomScreenViewState, ReportRoomScreenViewAction>
 
 class ReportRoomScreenViewModel: ReportRoomScreenViewModelType, ReportRoomScreenViewModelProtocol {
     let roomProxy: JoinedRoomProxyProtocol
@@ -38,7 +39,7 @@ class ReportRoomScreenViewModel: ReportRoomScreenViewModelType, ReportRoomScreen
         
     private func report() async {
         showLoadingIndicator()
-        let result = await roomProxy.reportRoom(reason: state.bindings.reason.isEmpty ? nil : state.bindings.reason)
+        let result = await roomProxy.reportRoom(reason: state.bindings.reason)
         
         switch result {
         case .success:

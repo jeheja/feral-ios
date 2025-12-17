@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -138,10 +139,23 @@ struct TimelineCollapseButtonLabel: View {
 }
 
 struct TimelineReactionButton: View {
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
+    
     let reaction: AggregatedReaction
     let toggleReaction: (String) -> Void
     let showReactionSummary: (String) -> Void
     @ScaledMetric(relativeTo: .subheadline) private var lineHeight = 20
+    
+    private var accessibilityLabel: String {
+        if reaction.isHighlighted {
+            return reaction.count > 1 ? L10n.tr("Localizable", "screen_room_timeline_reaction_including_you_a11y", reaction.count - 1, reaction.displayKey) : L10n.screenRoomTimelineReactionYouA11y(reaction.displayKey)
+        }
+        return L10n.tr("Localizable", "screen_room_timeline_reaction_a11y", reaction.count, reaction.displayKey)
+    }
+    
+    private var toggleReactionAccessibilityActionName: String {
+        reaction.isHighlighted ? L10n.a11yRemoveReaction(reaction.displayKey) : L10n.a11yAddReaction(reaction.displayKey)
+    }
     
     var body: some View {
         label
@@ -151,8 +165,12 @@ struct TimelineReactionButton: View {
             .longPressWithFeedback {
                 showReactionSummary(reaction.key)
             }
-            .accessibilityHint(L10n.commonReaction)
-            .accessibilityAddTraits(reaction.isHighlighted ? .isSelected : [])
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityHint(toggleReactionAccessibilityActionName)
+            .accessibilityAction(named: L10n.screenRoomTimelineReactionsShowReactionsSummary) {
+                showReactionSummary(reaction.key)
+            }
     }
     
     var label: some View {

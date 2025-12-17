@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -18,7 +19,7 @@ enum TimelineViewModelAction {
     case displayDocumentPicker
     case displayLocationPicker
     case displayPollForm(mode: PollFormMode)
-    case displayMediaUploadPreviewScreen(url: URL)
+    case displayMediaUploadPreviewScreen(mediaURLs: [URL])
     case displaySenderDetails(userID: String)
     case displayMessageForwarding(forwardingItem: MessageForwardingItem)
     case displayMediaPreview(TimelineMediaPreviewViewModel)
@@ -27,7 +28,9 @@ enum TimelineViewModelAction {
     case displayThread(itemID: TimelineItemIdentifier)
     case composer(action: TimelineComposerAction)
     case hasScrolled(direction: ScrollDirection)
-    case viewInRoomTimeline(eventID: String)
+    case viewInRoomTimeline(eventID: String, threadRootEventID: String?)
+    case displayRoom(roomID: String, via: [String])
+    case displayMediaDetails(item: EventBasedMessageTimelineItemProtocol)
 }
 
 enum TimelineViewPollAction {
@@ -62,7 +65,7 @@ enum TimelineViewAction {
     case displayReadReceipts(itemID: TimelineItemIdentifier)
     case displayThread(itemID: TimelineItemIdentifier)
     
-    case handlePasteOrDrop(provider: NSItemProvider)
+    case handlePasteOrDrop(providers: [NSItemProvider])
     case handlePollAction(TimelineViewPollAction)
     case handleAudioPlayerAction(TimelineAudioPlayerAction)
     
@@ -76,7 +79,8 @@ enum TimelineViewAction {
     case hasSwitchedTimeline
     
     case hasScrolled(direction: ScrollDirection)
-    case setOpenURLAction(OpenURLAction)
+    
+    case displayPredecessorRoom
 }
 
 enum TimelineComposerAction {
@@ -98,21 +102,24 @@ struct TimelineViewState: BindableState {
     var timelineState: TimelineState // check the doc before changing this
 
     var ownUserID: String
+    var canCurrentUserSendMessage = false
     var canCurrentUserRedactOthers = false
     var canCurrentUserRedactSelf = false
     var canCurrentUserPin = false
     var canCurrentUserKick = false
     var canCurrentUserBan = false
+    
+    var hideTimelineMedia: Bool
+    
     var isViewSourceEnabled: Bool
     var areThreadsEnabled: Bool
-    var hideTimelineMedia: Bool
+    var linkPreviewsEnabled: Bool
+    
+    let hasPredecessor: Bool
         
     // The `pinnedEventIDs` are used only to determine if an item is already pinned or not.
     // It's updated from the room info, so it's faster than using the timeline
     var pinnedEventIDs: Set<String> = []
-    
-    /// an openURL closure which opens URLs first using the App's environment rather than skipping out to external apps
-    var openURL: OpenURLAction?
     
     /// A closure providing the associated audio player state for an item in the timeline.
     var audioPlayerStateProvider: (@MainActor (_ itemId: TimelineItemIdentifier) -> AudioPlayerState?)?
@@ -127,6 +134,8 @@ struct TimelineViewState: BindableState {
     var roomNameForAliasResolver: (@MainActor (String) -> String?)?
     
     var emojiProvider: EmojiProviderProtocol
+    
+    var linkMetadataProvider: LinkMetadataProviderProtocol?
     
     var mapTilerConfiguration: MapTilerConfiguration
     

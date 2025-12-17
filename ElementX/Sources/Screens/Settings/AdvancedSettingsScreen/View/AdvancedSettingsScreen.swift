@@ -1,5 +1,6 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
 // SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 // Please see LICENSE files in the repository root for full details.
@@ -114,8 +115,8 @@ struct AdvancedSettingsScreen_Previews: PreviewProvider, TestablePreview {
 
 private extension TimelineMediaVisibility {
     static var items: [(title: String, tag: TimelineMediaVisibility)] {
-        [(title: L10n.screenAdvancedSettingsShowMediaTimelineAlwaysShow, tag: .always),
+        [(title: L10n.screenAdvancedSettingsShowMediaTimelineAlwaysHide, tag: .never),
          (title: L10n.screenAdvancedSettingsShowMediaTimelinePrivateRooms, tag: .privateOnly),
-         (title: L10n.screenAdvancedSettingsShowMediaTimelineAlwaysHide, tag: .never)]
+         (title: L10n.screenAdvancedSettingsShowMediaTimelineAlwaysShow, tag: .always)]
     }
 }

@@ -1,7 +1,8 @@
 //
-// Copyright 2023, 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2023-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -15,12 +16,15 @@ struct InviteUsersScreenSelectedItem: View {
     var body: some View {
         VStack(spacing: 0) {
             avatar
+                .accessibilityHidden(true)
             
             Text(user.displayName ?? user.userID)
                 .font(.compound.bodyMD)
                 .foregroundColor(.compound.textPrimary)
                 .lineLimit(1)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityAction(named: L10n.actionRemove, dismissAction)
     }
     
     // MARK: - Private

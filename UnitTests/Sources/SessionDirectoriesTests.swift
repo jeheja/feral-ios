@@ -1,7 +1,8 @@
 //
-// Copyright 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2024-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -11,18 +12,6 @@ import XCTest
 
 class SessionDirectoriesTests: XCTestCase {
     let fileManager = FileManager.default
-    
-    func testInitWithUserID() {
-        // Given only a user ID.
-        let userID = "@user:matrix.org"
-        
-        // When creating the session directories using this.
-        let sessionDirectories = SessionDirectories(userID: userID)
-        
-        // Then the directories should be generated in the correct location, using an escaped version of the user ID
-        XCTAssertEqual(sessionDirectories.dataDirectory, .sessionsBaseDirectory.appending(component: "@user_matrix.org"))
-        XCTAssertEqual(sessionDirectories.cacheDirectory, .sessionCachesBaseDirectory.appending(component: "@user_matrix.org"))
-    }
     
     func testInitWithDataDirectory() {
         // Given only a session directory without a caches directory.

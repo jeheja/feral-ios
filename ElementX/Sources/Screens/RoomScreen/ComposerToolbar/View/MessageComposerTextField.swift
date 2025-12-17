@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -96,8 +97,7 @@ private struct UITextViewWrapper: UIViewRepresentable {
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
         // Note: Coalescing a width of zero here returns a size for the view with 1 line of text visible.
-        let newSize = uiView.sizeThatFits(CGSize(width: proposal.width ?? .zero,
-                                                 height: CGFloat.greatestFiniteMagnitude))
+        let newSize = uiView.sizeThatFits(CGSize(width: proposal.width ?? .zero, height: maxHeight))
         let width = proposal.width ?? newSize.width
         let height = min(maxHeight, newSize.height)
 
@@ -191,8 +191,8 @@ private struct UITextViewWrapper: UIViewRepresentable {
             textView.insertText("\n")
         }
 
-        func textView(_ textView: UITextView, didReceivePasteWith provider: NSItemProvider) {
-            pasteHandler(provider)
+        func textView(_ textView: UITextView, didReceivePasteWith providers: [NSItemProvider]) {
+            pasteHandler(providers)
         }
         
         func textViewDidChangeSelection(_ textView: UITextView) {
@@ -208,7 +208,7 @@ private struct UITextViewWrapper: UIViewRepresentable {
 private protocol ElementTextViewDelegate: AnyObject {
     func textViewDidReceiveShiftEnterKeyPress(_ textView: UITextView)
     func textViewDidReceiveKeyPress(_ textView: UITextView, key: UIKeyboardHIDUsage)
-    func textView(_ textView: UITextView, didReceivePasteWith provider: NSItemProvider)
+    func textView(_ textView: UITextView, didReceivePasteWith providers: [NSItemProvider])
 }
 
 private class ElementTextView: UITextView, PillAttachmentViewProviderDelegate {
@@ -281,19 +281,19 @@ private class ElementTextView: UITextView, PillAttachmentViewProviderDelegate {
             return false
         }
 
-        return UIPasteboard.general.itemProviders.first?.isSupportedForPasteOrDrop ?? false
+        return UIPasteboard.general.itemProviders.filter { !$0.isSupportedForPasteOrDrop }.isEmpty
     }
 
     override func paste(_ sender: Any?) {
-        guard let provider = UIPasteboard.general.itemProviders.first,
-              provider.isSupportedForPasteOrDrop else {
-            // If the item is not supported for media upload then
-            // just try pasting its contents into the textfield
+        let providers = UIPasteboard.general.itemProviders
+        
+        // Use the default behavior if there are any unsupported providers
+        guard providers.filter({ !$0.isSupportedForPasteOrDrop }).isEmpty else {
             super.paste(sender)
             return
         }
-
-        elementDelegate?.textView(self, didReceivePasteWith: provider)
+        
+        elementDelegate?.textView(self, didReceivePasteWith: providers)
     }
     
     // MARK: PillAttachmentViewProviderDelegate

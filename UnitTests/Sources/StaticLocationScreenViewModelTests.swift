@@ -1,7 +1,8 @@
 //
-// Copyright 2023, 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2023-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -12,18 +13,20 @@ import XCTest
 
 @MainActor
 class StaticLocationScreenViewModelTests: XCTestCase {
+    let timelineProxy = TimelineProxyMock(.init())
+    
     var viewModel: StaticLocationScreenViewModelProtocol!
+    var context: StaticLocationScreenViewModel.Context { viewModel.context }
     
     private var cancellables = Set<AnyCancellable>()
-    
-    var context: StaticLocationScreenViewModel.Context {
-        viewModel.context
-    }
     
     override func setUpWithError() throws {
         cancellables.removeAll()
         let viewModel = StaticLocationScreenViewModel(interactionMode: .picker,
-                                                      mapURLBuilder: ServiceLocator.shared.settings.mapTilerConfiguration)
+                                                      mapURLBuilder: ServiceLocator.shared.settings.mapTilerConfiguration,
+                                                      timelineController: MockTimelineController(timelineProxy: timelineProxy),
+                                                      analytics: ServiceLocator.shared.analytics,
+                                                      userIndicatorController: UserIndicatorControllerMock())
         viewModel.state.bindings.isLocationAuthorized = true
         self.viewModel = viewModel
     }
@@ -73,22 +76,18 @@ class StaticLocationScreenViewModelTests: XCTestCase {
         context.mapCenterLocation = .init(latitude: 0, longitude: 0)
         context.geolocationUncertainty = 10
         
-        let deferred = deferFulfillment(viewModel.actions) { action in
-            switch action {
-            case .sendLocation:
-                return true
-            default:
-                return false
-            }
+        let deferred = deferFulfillment(viewModel.actions) { $0 == .close }
+        let expectation = XCTestExpectation(description: "sendLocation")
+        timelineProxy.sendLocationBodyGeoURIDescriptionZoomLevelAssetTypeClosure = { _, geoURI, _, _, assetType in
+            XCTAssertEqual(geoURI.uncertainty, 10)
+            XCTAssertEqual(assetType, .sender)
+            expectation.fulfill()
+            return .success(())
         }
         
         context.send(viewAction: .selectLocation)
-        guard case .sendLocation(let geoUri, let isUserLocation) = try await deferred.fulfill() else {
-            XCTFail("Sent action should be 'sendLocation'")
-            return
-        }
-        XCTAssertEqual(geoUri.uncertainty, 10)
-        XCTAssertTrue(isUserLocation)
+        await fulfillment(of: [expectation], timeout: 1)
+        try await deferred.fulfill()
     }
 
     func testSendPickedLocation() async throws {
@@ -96,21 +95,17 @@ class StaticLocationScreenViewModelTests: XCTestCase {
         context.isLocationAuthorized = nil
         context.geolocationUncertainty = 10
 
-        let deferred = deferFulfillment(viewModel.actions) { action in
-            switch action {
-            case .sendLocation:
-                return true
-            default:
-                return false
-            }
+        let deferred = deferFulfillment(viewModel.actions) { $0 == .close }
+        let expectation = XCTestExpectation(description: "sendLocation")
+        timelineProxy.sendLocationBodyGeoURIDescriptionZoomLevelAssetTypeClosure = { _, geoURI, _, _, assetType in
+            XCTAssertEqual(geoURI.uncertainty, nil)
+            XCTAssertEqual(assetType, .pin)
+            expectation.fulfill()
+            return .success(())
         }
         
         context.send(viewAction: .selectLocation)
-        guard case .sendLocation(let geoUri, let isUserLocation) = try await deferred.fulfill() else {
-            XCTFail("Sent action should be 'sendLocation'")
-            return
-        }
-        XCTAssertEqual(geoUri.uncertainty, nil)
-        XCTAssertFalse(isUserLocation)
+        await fulfillment(of: [expectation], timeout: 1)
+        try await deferred.fulfill()
     }
 }

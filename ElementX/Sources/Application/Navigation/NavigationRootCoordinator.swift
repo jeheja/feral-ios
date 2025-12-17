@@ -1,14 +1,15 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
 import SwiftUI
 
-class NavigationRootCoordinator: ObservableObject, CoordinatorProtocol, CustomStringConvertible {
-    @Published fileprivate var rootModule: NavigationModule? {
+@Observable class NavigationRootCoordinator: CoordinatorProtocol, CustomStringConvertible {
+    fileprivate var rootModule: NavigationModule? {
         didSet {
             if let oldValue {
                 oldValue.tearDown()
@@ -26,7 +27,7 @@ class NavigationRootCoordinator: ObservableObject, CoordinatorProtocol, CustomSt
         rootModule?.coordinator
     }
     
-    @Published fileprivate var sheetModule: NavigationModule? {
+    fileprivate var sheetModule: NavigationModule? {
         didSet {
             if let oldValue {
                 logPresentationChange("Remove sheet", oldValue)
@@ -47,7 +48,7 @@ class NavigationRootCoordinator: ObservableObject, CoordinatorProtocol, CustomSt
         sheetModule?.coordinator
     }
     
-    @Published fileprivate var overlayModule: NavigationModule? {
+    fileprivate var overlayModule: NavigationModule? {
         didSet {
             if let oldValue {
                 logPresentationChange("Remove overlay", oldValue)
@@ -152,7 +153,7 @@ class NavigationRootCoordinator: ObservableObject, CoordinatorProtocol, CustomSt
 }
 
 private struct NavigationRootCoordinatorView: View {
-    @ObservedObject var rootCoordinator: NavigationRootCoordinator
+    @Bindable var rootCoordinator: NavigationRootCoordinator
     
     var body: some View {
         ZStack {
@@ -162,6 +163,7 @@ private struct NavigationRootCoordinatorView: View {
         .sheet(item: $rootCoordinator.sheetModule) { module in
             module.coordinator?.toPresentable()
         }
+        .accessibilityHidden(rootCoordinator.overlayModule?.coordinator != nil)
         .overlay {
             Group {
                 if let coordinator = rootCoordinator.overlayModule?.coordinator {

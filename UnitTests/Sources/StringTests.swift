@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -29,25 +30,24 @@ class StringTests: XCTestCase {
     func testJ🅾️hnnyIsNotAscii() {
         XCTAssertFalse("j🅾️hnny".isASCII)
     }
-
-    func testAsciiStaysAscii() {
+    
+    func testAsciifiedMethod() {
+        // ASCII strings return themselves unchanged
         XCTAssertEqual("johnny".asciified(), "johnny")
-    }
-    
-    func testÖBecomesO() {
-        XCTAssertEqual("jöhnny".asciified(), "johnny")
-    }
-    
-    func testÅBecomesA() {
-        XCTAssertEqual("jåhnny".asciified(), "jahnny")
-    }
-    
-    func test1️⃣2️⃣3️⃣Becomes123() {
-        XCTAssertEqual("1️⃣2️⃣3️⃣".asciified(), "123")
-    }
-    
-    func testStripsTheHeartbreakHotel() {
-        XCTAssertEqual("Heartbreak Hotel 🏩".asciified(), "Heartbreak Hotel")
+        XCTAssertEqual("hello".asciified(), "hello")
+        XCTAssertEqual("abc123".asciified(), "abc123")
+        XCTAssertEqual("".asciified(), "")
+        XCTAssertEqual(" ".asciified(), " ")
+        
+        // Non-ASCII strings get converted or stripped
+        XCTAssertEqual("jöhnny".asciified(), "johnny", "ö should become o")
+        XCTAssertEqual("jåhnny".asciified(), "jahnny", "å should become a")
+        XCTAssertEqual("café".asciified(), "cafe")
+        XCTAssertEqual("naïve".asciified(), "naive")
+        XCTAssertEqual("résumé".asciified(), "resume")
+        XCTAssertEqual("🚀".asciified(), "")
+        XCTAssertEqual("Heartbreak Hotel 🏩".asciified(), "Heartbreak Hotel", "The emoji should be stripped.")
+        XCTAssertEqual("1️⃣2️⃣3️⃣".asciified(), "123", "The emoji should be converted to ASCII.")
     }
 
     func testGenerateBreakableWhitespaceEnd() {

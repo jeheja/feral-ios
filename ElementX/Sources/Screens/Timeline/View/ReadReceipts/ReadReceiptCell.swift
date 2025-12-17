@@ -1,7 +1,8 @@
 //
-// Copyright 2023, 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2023-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -30,6 +31,7 @@ struct ReadReceiptCell: View {
                                 contentID: readReceipt.userID,
                                 avatarSize: .user(on: .readReceiptSheet),
                                 mediaProvider: mediaProvider)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 12) {
                     Text(title)
@@ -50,6 +52,7 @@ struct ReadReceiptCell: View {
                     .lineLimit(1)
             }
         }
+        .accessibilityElement(children: .combine)
         .padding(.vertical, 8)
         .padding(.horizontal, 16)
     }

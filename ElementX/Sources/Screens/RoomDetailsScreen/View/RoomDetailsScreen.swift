@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -9,7 +10,7 @@ import Compound
 import SwiftUI
 
 struct RoomDetailsScreen: View {
-    @ObservedObject var context: RoomDetailsScreenViewModel.Context
+    @Bindable var context: RoomDetailsScreenViewModel.Context
     
     @State private var isTopicExpanded = false
     
@@ -45,7 +46,7 @@ struct RoomDetailsScreen: View {
                message: blockUserAlertMessage)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                if context.viewState.canEdit {
+                if context.viewState.canEditBaseInfo {
                     Button(L10n.actionEdit) {
                         context.send(viewAction: .processTapEdit)
                     }
@@ -265,6 +266,7 @@ struct RoomDetailsScreen: View {
                                         icon: \.lock,
                                         iconAlignment: .top),
                         kind: .label)
+                    .accessibilityAddTraits(.isHeader)
             } header: {
                 Text(L10n.commonSecurity)
                     .compoundListSectionHeader()
@@ -337,33 +339,23 @@ struct RoomDetailsScreen_Previews: PreviewProvider, TestablePreview {
     
     static var previews: some View {
         RoomDetailsScreen(context: genericRoomViewModel.context)
-            .snapshotPreferences(expect: genericRoomViewModel.context.$viewState.map { state in
-                state.shortcuts.contains(.invite)
-            })
+            .snapshotPreferences(expect: genericRoomViewModel.context.observe(\.viewState.permalink).map { $0 != nil })
             .previewDisplayName("Generic Room")
         
         RoomDetailsScreen(context: simpleRoomViewModel.context)
-            .snapshotPreferences(expect: simpleRoomViewModel.context.$viewState.map { state in
-                state.shortcuts.contains(.invite)
-            })
+            .snapshotPreferences(expect: simpleRoomViewModel.context.observe(\.viewState.permalink).map { $0 != nil })
             .previewDisplayName("Simple Room")
         
         RoomDetailsScreen(context: dmRoomViewModel.context)
-            .snapshotPreferences(expect: dmRoomViewModel.context.$viewState.map { state in
-                state.accountOwner != nil
-            })
+            .snapshotPreferences(expect: dmRoomViewModel.context.observe(\.viewState.accountOwner).map { $0 != nil })
             .previewDisplayName("DM Room")
         
         RoomDetailsScreen(context: dmRoomVerifiedViewModel.context)
-            .snapshotPreferences(expect: dmRoomVerifiedViewModel.context.$viewState.map { state in
-                state.accountOwner != nil
-            })
+            .snapshotPreferences(expect: dmRoomVerifiedViewModel.context.observe(\.viewState.dmRecipientInfo?.verificationState).map { $0 == .verified })
             .previewDisplayName("DM Room Verified")
         
         RoomDetailsScreen(context: dmRoomVerificationViolationViewModel.context)
-            .snapshotPreferences(expect: dmRoomVerificationViolationViewModel.context.$viewState.map { state in
-                state.accountOwner != nil
-            })
+            .snapshotPreferences(expect: dmRoomVerificationViolationViewModel.context.observe(\.viewState.accountOwner).map { $0 != nil })
             .previewDisplayName("DM Room Verification Violation")
     }
     
@@ -401,13 +393,11 @@ struct RoomDetailsScreen_Previews: PreviewProvider, TestablePreview {
         let notificationSettingsProxy = NotificationSettingsProxyMock(with: notificationSettingsProxyMockConfiguration)
         
         return .init(roomProxy: roomProxy,
-                     clientProxy: ClientProxyMock(.init()),
-                     mediaProvider: MediaProviderMock(configuration: .init()),
+                     userSession: UserSessionMock(.init()),
                      analyticsService: ServiceLocator.shared.analytics,
                      userIndicatorController: ServiceLocator.shared.userIndicatorController,
                      notificationSettingsProxy: notificationSettingsProxy,
                      attributedStringBuilder: AttributedStringBuilder(mentionBuilder: MentionBuilder()),
-                     appMediator: AppMediatorMock.default,
                      appSettings: ServiceLocator.shared.settings)
     }
     
@@ -432,13 +422,11 @@ struct RoomDetailsScreen_Previews: PreviewProvider, TestablePreview {
         let notificationSettingsProxy = NotificationSettingsProxyMock(with: .init())
         
         return .init(roomProxy: roomProxy,
-                     clientProxy: ClientProxyMock(.init()),
-                     mediaProvider: MediaProviderMock(configuration: .init()),
+                     userSession: UserSessionMock(.init()),
                      analyticsService: ServiceLocator.shared.analytics,
                      userIndicatorController: ServiceLocator.shared.userIndicatorController,
                      notificationSettingsProxy: notificationSettingsProxy,
                      attributedStringBuilder: AttributedStringBuilder(mentionBuilder: MentionBuilder()),
-                     appMediator: AppMediatorMock.default,
                      appSettings: ServiceLocator.shared.settings)
     }
     
@@ -458,7 +446,7 @@ struct RoomDetailsScreen_Previews: PreviewProvider, TestablePreview {
         
         let clientProxyMock = ClientProxyMock(.init())
         
-        clientProxyMock.userIdentityForClosure = { userID in
+        clientProxyMock.userIdentityForFallBackToServerClosure = { userID, _ in
             let identity = switch userID {
             case RoomMemberProxyMock.mockDan.userID:
                 UserIdentityProxyMock(configuration: .init(verificationState: verificationState))
@@ -472,13 +460,11 @@ struct RoomDetailsScreen_Previews: PreviewProvider, TestablePreview {
         let notificationSettingsProxy = NotificationSettingsProxyMock(with: .init())
         
         return .init(roomProxy: roomProxy,
-                     clientProxy: clientProxyMock,
-                     mediaProvider: MediaProviderMock(configuration: .init()),
+                     userSession: UserSessionMock(.init(clientProxy: clientProxyMock)),
                      analyticsService: ServiceLocator.shared.analytics,
                      userIndicatorController: ServiceLocator.shared.userIndicatorController,
                      notificationSettingsProxy: notificationSettingsProxy,
                      attributedStringBuilder: AttributedStringBuilder(mentionBuilder: MentionBuilder()),
-                     appMediator: AppMediatorMock.default,
                      appSettings: ServiceLocator.shared.settings)
     }
 }

@@ -1,7 +1,8 @@
 //
-// Copyright 2023, 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2023-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -63,12 +64,19 @@ final class ComposerToolbarViewModel: ComposerToolbarViewModelType, ComposerTool
         mentionBuilder = MentionBuilder()
         attributedStringBuilder = AttributedStringBuilder(cacheKey: "Composer", mentionBuilder: mentionBuilder)
         
-        super.init(initialViewState: ComposerToolbarViewState(audioPlayerState: .init(id: .recorderPreview, title: L10n.commonVoiceMessage, duration: 0),
+        super.init(initialViewState: ComposerToolbarViewState(wysiwygViewModel: wysiwygViewModel,
+                                                              audioPlayerState: .init(id: .recorderPreview, title: L10n.commonVoiceMessage, duration: 0),
                                                               audioRecorderState: .init(),
                                                               isRoomEncrypted: roomProxy.infoPublisher.value.isEncrypted,
                                                               isLocationSharingEnabled: appSettings.mapTilerConfiguration.isEnabled,
                                                               bindings: .init()),
                    mediaProvider: mediaProvider)
+        
+        state.keyCommands = [
+            .enter { [weak self] in
+                self?.process(viewAction: .sendMessage)
+            }
+        ]
         
         roomProxy.infoPublisher
             .map(\.isEncrypted)
@@ -97,6 +105,13 @@ final class ComposerToolbarViewModel: ComposerToolbarViewModelType, ComposerTool
             .sink { [weak self] isEmpty in
                 self?.state.composerEmpty = isEmpty
                 self?.actionsSubject.send(.contentChanged(isEmpty: isEmpty))
+            }
+            .store(in: &cancellables)
+        
+        // Needs to be observable or the placeholder and the dictation state will not be managed correctly.
+        wysiwygViewModel.objectWillChange
+            .sink { [weak self] _ in
+                self?.context.objectWillChange.send()
             }
             .store(in: &cancellables)
         
@@ -145,9 +160,22 @@ final class ComposerToolbarViewModel: ComposerToolbarViewModelType, ComposerTool
             }
         }
         .store(in: &cancellables)
+        
+        NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification).sink { [weak self] _ in
+            self?.saveDraft()
+        }
+        .store(in: &cancellables)
     }
     
     // MARK: - Public
+    
+    func start() {
+        Task { await loadDraft() }
+    }
+    
+    func stop() {
+        saveDraft()
+    }
 
     override func process(viewAction: ComposerToolbarViewAction) {
         switch viewAction {
@@ -156,6 +184,8 @@ final class ComposerToolbarViewModel: ComposerToolbarViewModelType, ComposerTool
                 hasAppeard = true
                 wysiwygViewModel.setup()
             }
+        case .composerDisappeared:
+            saveDraft()
         case .sendMessage:
             guard !state.sendButtonDisabled else { return }
             
@@ -187,8 +217,8 @@ final class ComposerToolbarViewModel: ComposerToolbarViewModelType, ComposerTool
         case .attach(let attachment):
             state.bindings.composerFocused = false
             actionsSubject.send(.attach(attachment))
-        case .handlePasteOrDrop(let provider):
-            actionsSubject.send(.handlePasteOrDrop(provider: provider))
+        case .handlePasteOrDrop(let providers):
+            actionsSubject.send(.handlePasteOrDrop(providers: providers))
         case .enableTextFormatting:
             state.bindings.composerFormattingEnabled = true
             state.bindings.composerFocused = true
@@ -269,14 +299,6 @@ final class ComposerToolbarViewModel: ComposerToolbarViewModelType, ComposerTool
         handleSaveDraft(isVolatile: false)
     }
     
-    var keyCommands: [WysiwygKeyCommand] {
-        [
-            .enter { [weak self] in
-                self?.process(viewAction: .sendMessage)
-            }
-        ]
-    }
-
     // MARK: - Private
     
     private func handleLoadDraft(_ draft: ComposerDraftProxy) {
@@ -472,7 +494,7 @@ final class ComposerToolbarViewModel: ComposerToolbarViewModelType, ComposerTool
                 attributedString = NSMutableAttributedString(string: string, attributes: [.link: URL(string: urlString) as Any])
             }
             
-            attributedStringBuilder.detectPermalinks(attributedString)
+            attributedStringBuilder.addMatrixEntityPermalinkAttributesTo(attributedString)
             
             // In RTE mentions don't need to be handled as links
             attributedString.removeAttribute(.link, range: NSRange(location: 0, length: attributedString.length))
@@ -585,7 +607,7 @@ final class ComposerToolbarViewModel: ComposerToolbarViewModelType, ComposerTool
                 attributedString.addAttribute(.MatrixAllUsersMention, value: true, range: match.range)
             }
             
-            attributedStringBuilder.detectPermalinks(attributedString)
+            attributedStringBuilder.addMatrixEntityPermalinkAttributesTo(attributedString)
             
             state.bindings.plainComposerText = attributedString
         }

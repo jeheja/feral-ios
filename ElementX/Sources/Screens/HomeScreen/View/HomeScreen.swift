@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -25,9 +26,7 @@ struct HomeScreen: View {
             .toolbar { toolbar }
             .background(Color.compound.bgCanvasDefault.ignoresSafeArea())
             .track(screen: .Home)
-            .bloom(context: context,
-                   scrollViewAdapter: scrollViewAdapter,
-                   isNewBloomEnabled: context.viewState.isNewBloomEnabled)
+            .toolbarBloom(hasSearchBar: true)
             .sentryTrace("\(Self.self)")
     }
     
@@ -36,24 +35,31 @@ struct HomeScreen: View {
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .navigationBarLeading) {
-            Button {
-                context.send(viewAction: .showSettings)
-            } label: {
-                LoadableAvatarImage(url: context.viewState.userAvatarURL,
-                                    name: context.viewState.userDisplayName,
-                                    contentID: context.viewState.userID,
-                                    avatarSize: .user(on: .home),
-                                    mediaProvider: context.mediaProvider)
-                    .accessibilityIdentifier(A11yIdentifiers.homeScreen.userAvatar)
-                    .overlayBadge(10, isBadged: context.viewState.requiresExtraAccountSetup)
-                    .compositingGroup()
-            }
-            .accessibilityLabel(L10n.commonSettings)
+            settingsButton
         }
+        .backportSharedBackgroundVisibility(.hidden)
         
         ToolbarItem(placement: .primaryAction) {
             newRoomButton
         }
+        .backportSharedBackgroundVisibility(.hidden)
+    }
+    
+    private var settingsButton: some View {
+        Button {
+            context.send(viewAction: .showSettings)
+        } label: {
+            LoadableAvatarImage(url: context.viewState.userAvatarURL,
+                                name: context.viewState.userDisplayName,
+                                contentID: context.viewState.userID,
+                                avatarSize: .user(on: .chats),
+                                mediaProvider: context.mediaProvider)
+                .accessibilityIdentifier(A11yIdentifiers.homeScreen.userAvatar)
+                .clipShape(.circle)
+                .overlayBadge(10, isBadged: context.viewState.requiresExtraAccountSetup)
+                .compositingGroup()
+        }
+        .accessibilityLabel(L10n.commonSettings)
     }
     
     @ViewBuilder

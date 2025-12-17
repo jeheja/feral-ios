@@ -1,7 +1,8 @@
 //
-// Copyright 2023, 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2023-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -19,9 +20,12 @@ private enum SuggestionTriggerRegex {
 final class CompletionSuggestionService: CompletionSuggestionServiceProtocol {
     private let roomProxy: JoinedRoomProxyProtocol
     private var canMentionAllUsers = false
+    
     private(set) var suggestionsPublisher: AnyPublisher<[SuggestionItem], Never> = Empty().eraseToAnyPublisher()
     
     private let suggestionTriggerSubject = CurrentValueSubject<SuggestionTrigger?, Never>(nil)
+    
+    private var cancellables = Set<AnyCancellable>()
     
     init(roomProxy: JoinedRoomProxyProtocol,
          roomListPublisher: AnyPublisher<[RoomSummary], Never>) {
@@ -47,14 +51,14 @@ final class CompletionSuggestionService: CompletionSuggestionServiceProtocol {
                 self?.suggestionTriggerSubject.value != nil ? .milliseconds(500) : .milliseconds(0)
             }
         
-        Task {
-            switch await roomProxy.canUserTriggerRoomNotification(userID: roomProxy.ownUserID) {
-            case .success(let value):
-                canMentionAllUsers = value
-            case .failure:
-                canMentionAllUsers = false
+        roomProxy.infoPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] roomInfo in
+                self?.updateRoomInfo(roomInfo)
             }
-        }
+            .store(in: &cancellables)
+        
+        updateRoomInfo(roomProxy.infoPublisher.value)
     }
     
     func processTextMessage(_ textMessage: String, selectedRange: NSRange) {
@@ -66,6 +70,12 @@ final class CompletionSuggestionService: CompletionSuggestionServiceProtocol {
     }
     
     // MARK: - Private
+    
+    private func updateRoomInfo(_ roomInfo: RoomInfoProxyProtocol) {
+        if let powerLevels = roomProxy.infoPublisher.value.powerLevels {
+            canMentionAllUsers = powerLevels.canOwnUserTriggerRoomNotification()
+        }
+    }
     
     private func membersSuggestions(suggestionTrigger: SuggestionTrigger,
                                     members: [RoomMemberProxyProtocol],
@@ -157,5 +167,11 @@ final class CompletionSuggestionService: CompletionSuggestionServiceProtocol {
             return true
         }
         return roomName.localizedStandardContains(searchText) || roomAlias.localizedStandardContains(searchText)
+    }
+}
+
+extension PillUtilities {
+    static var everyone: String {
+        L10n.commonEveryone
     }
 }

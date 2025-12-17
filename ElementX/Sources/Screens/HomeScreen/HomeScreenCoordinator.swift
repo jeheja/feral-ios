@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -23,7 +24,9 @@ enum HomeScreenCoordinatorAction {
     case presentRoomDetails(roomIdentifier: String)
     case presentReportRoom(roomIdentifier: String)
     case presentDeclineAndBlock(userID: String, roomID: String)
+    case presentSpace(SpaceRoomListProxyProtocol)
     case roomLeft(roomIdentifier: String)
+    case transferOwnership(roomIdentifier: String)
     case presentSettingsScreen
     case presentFeedbackScreen
     case presentSecureBackupSettings
@@ -31,7 +34,6 @@ enum HomeScreenCoordinatorAction {
     case presentEncryptionResetScreen
     case presentStartChatScreen
     case presentGlobalSearch
-    case logoutWithoutConfirmation
     case logout
 }
 
@@ -67,6 +69,10 @@ final class HomeScreenCoordinator: CoordinatorProtocol {
                     actionsSubject.send(.presentRoomDetails(roomIdentifier: roomIdentifier))
                 case .presentReportRoom(let roomIdentifier):
                     actionsSubject.send(.presentReportRoom(roomIdentifier: roomIdentifier))
+                case .presentDeclineAndBlock(let userID, let roomID):
+                    actionsSubject.send(.presentDeclineAndBlock(userID: userID, roomID: roomID))
+                case .presentSpace(let spaceRoomListProxy):
+                    actionsSubject.send(.presentSpace(spaceRoomListProxy))
                 case .roomLeft(roomIdentifier: let roomIdentifier):
                     actionsSubject.send(.roomLeft(roomIdentifier: roomIdentifier))
                 case .presentFeedbackScreen:
@@ -83,12 +89,10 @@ final class HomeScreenCoordinator: CoordinatorProtocol {
                     actionsSubject.send(.presentStartChatScreen)
                 case .presentGlobalSearch:
                     actionsSubject.send(.presentGlobalSearch)
-                case .logoutWithoutConfirmation:
-                    actionsSubject.send(.logoutWithoutConfirmation)
                 case .logout:
                     actionsSubject.send(.logout)
-                case .presentDeclineAndBlock(let userID, let roomID):
-                    actionsSubject.send(.presentDeclineAndBlock(userID: userID, roomID: roomID))
+                case .transferOwnership(let roomIdentifier):
+                    actionsSubject.send(.transferOwnership(roomIdentifier: roomIdentifier))
                 }
             }
             .store(in: &cancellables)

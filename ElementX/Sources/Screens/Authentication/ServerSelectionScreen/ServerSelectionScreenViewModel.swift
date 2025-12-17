@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -13,6 +14,7 @@ typealias ServerSelectionScreenViewModelType = StateStoreViewModelV2<ServerSelec
 class ServerSelectionScreenViewModel: ServerSelectionScreenViewModelType, ServerSelectionScreenViewModelProtocol {
     private let authenticationService: AuthenticationServiceProtocol
     private let authenticationFlow: AuthenticationFlow
+    private let appSettings: AppSettings
     private let userIndicatorController: UserIndicatorControllerProtocol
     
     private var actionsSubject: PassthroughSubject<ServerSelectionScreenViewModelAction, Never> = .init()
@@ -23,9 +25,11 @@ class ServerSelectionScreenViewModel: ServerSelectionScreenViewModelType, Server
 
     init(authenticationService: AuthenticationServiceProtocol,
          authenticationFlow: AuthenticationFlow,
+         appSettings: AppSettings,
          userIndicatorController: UserIndicatorControllerProtocol) {
         self.authenticationService = authenticationService
         self.authenticationFlow = authenticationFlow
+        self.appSettings = appSettings
         self.userIndicatorController = userIndicatorController
         
         let bindings = ServerSelectionScreenBindings(homeserverAddress: authenticationService.homeserver.value.address)
@@ -96,6 +100,14 @@ class ServerSelectionScreenViewModel: ServerSelectionScreenViewModelType, Server
             state.bindings.alertInfo = AlertInfo(id: .registrationAlert,
                                                  title: L10n.commonServerNotSupported,
                                                  message: L10n.errorAccountCreationNotPossible)
+        case .elementProRequired(let serverName):
+            state.bindings.alertInfo = AlertInfo(id: .elementProAlert,
+                                                 title: L10n.screenChangeServerErrorElementProRequiredTitle,
+                                                 message: L10n.screenChangeServerErrorElementProRequiredMessage(serverName),
+                                                 primaryButton: .init(title: L10n.screenChangeServerErrorElementProRequiredActionIos) {
+                                                     UIApplication.shared.open(self.appSettings.elementProAppStoreURL)
+                                                 },
+                                                 secondaryButton: .init(title: L10n.actionCancel, role: .cancel, action: nil))
         default:
             showFooterMessage(L10n.errorUnknown)
         }

@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -207,8 +208,8 @@ class KnockRequestsListScreenViewModelTests: XCTestCase {
                                                                                    KnockRequestProxyMock(.init(eventID: "2", userID: "@bob:matrix.org")),
                                                                                    KnockRequestProxyMock(.init(eventID: "3", userID: "@charlie:matrix.org")),
                                                                                    KnockRequestProxyMock(.init(eventID: "4", userID: "@dan:matrix.org"))]),
-                                                      canUserInvite: false,
-                                                      joinRule: .knock))
+                                                      joinRule: .knock,
+                                                      powerLevelsConfiguration: .init(canUserInvite: false)))
         viewModel = KnockRequestsListScreenViewModel(roomProxy: roomProxyMock,
                                                      mediaProvider: MediaProviderMock(),
                                                      userIndicatorController: UserIndicatorControllerMock())

@@ -1,7 +1,8 @@
 //
-// Copyright 2023, 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2023-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -125,6 +126,23 @@ extension NSItemProvider {
         let supportedContentTypes = registeredContentTypes
             .filter { isMimeTypeSupported($0.preferredMIMEType) || isIdentifierSupported($0.identifier) }
         
+        // If we can't find any supported types but we do find a fileURL, use
+        // the sibling type that provides a correct file extension for it.
+        // Return nil otherwise which will make it be inserted into the composer as text.
+        guard !supportedContentTypes.isEmpty else {
+            guard registeredContentTypes.contains(where: { $0.conforms(to: .fileURL) }) else {
+                return nil
+            }
+                        
+            for type in registeredContentTypes {
+                if let fileExtension = type.preferredFilenameExtension {
+                    return .init(type: type, fileExtension: fileExtension)
+                }
+            }
+            
+            return nil
+        }
+        
         // Have .jpeg take priority over .heic
         if supportedContentTypes.contains(.jpeg) {
             guard let fileExtension = preferredFileExtension(for: .jpeg) else {
@@ -171,7 +189,10 @@ extension NSItemProvider {
             return false
         }
         
-        return mimeType.hasPrefix("image/") || mimeType.hasPrefix("video/") || mimeType.hasPrefix("application/")
+        return mimeType.hasPrefix("application/") ||
+            mimeType.hasPrefix("audio/") ||
+            mimeType.hasPrefix("image/") ||
+            mimeType.hasPrefix("video/")
     }
 }
 

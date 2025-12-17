@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -33,9 +34,16 @@ struct DeveloperOptionsScreen: View {
             }
             
             Section("General") {
-                Toggle(isOn: $context.threadsEnabled) {
-                    Text("Threads")
+                Toggle(isOn: $context.linkNewDeviceEnabled) {
+                    Text("Link new device with QR code")
                 }
+                Toggle(isOn: $context.spaceSettingsEnabled) {
+                    Text("Space settings")
+                }
+                
+                context.viewState.appHooks
+                    .developerOptionsScreenHook
+                    .generalSectionRows()
             }
             
             Section("Room List") {
@@ -51,12 +59,20 @@ struct DeveloperOptionsScreen: View {
                     Text("Fuzzy searching")
                 }
                 
-                Toggle(isOn: $context.isNewBloomEnabled) {
-                    Text("New bloom appearance")
-                    Text("Requires app reboot")
+                Toggle(isOn: $context.lowPriorityFilterEnabled) {
+                    Text("Low priority filter")
                 }
             }
             
+            Section("Timeline") {
+                Toggle(isOn: $context.linkPreviewsEnabled) {
+                    Text("Link previews")
+                    Text("Follows the timeline media visibility settings.")
+                    Text("Can leak the device IP address when loading link metadata.")
+                        .foregroundStyle(.compound.textCriticalPrimary)
+                }
+            }
+                        
             Section("Join rules") {
                 Toggle(isOn: $context.knockingEnabled) {
                     Text("Knocking")
@@ -73,6 +89,16 @@ struct DeveloperOptionsScreen: View {
                 Text("Trust and Decoration")
             } footer: {
                 Text("This setting controls how end-to-end encryption (E2EE) keys are exchanged. Enabling it will prevent the inclusion of devices that have not been explicitly verified by their owners.")
+            }
+
+            Section {
+                Toggle(isOn: $context.enableKeyShareOnInvite) {
+                    Text("Share encrypted history with new members")
+                    Text("Requires app reboot")
+                }
+            } footer: {
+                Text("When inviting a user to an encrypted room that has history visibility set to \"shared\", share encrypted history with that user, and accept encrypted history when you are invited to such a room.")
+                Text("WARNING: this feature is EXPERIMENTAL and not all security precautions are implemented. Do not enable on production accounts.")
             }
 
             Section {
@@ -97,6 +123,9 @@ struct DeveloperOptionsScreen: View {
                     Text("Hide quiet alerts")
                     Text("The badge count will still be updated")
                 }
+                Toggle(isOn: $context.focusEventOnNotificationTap) {
+                    Text("Focus event on notification tap")
+                }
             }
             
             Section {
@@ -106,13 +135,6 @@ struct DeveloperOptionsScreen: View {
                     Text("🥳")
                         .frame(maxWidth: .infinity)
                         .alignmentGuide(.listRowSeparatorLeading) { _ in 0 } // Fix separator alignment
-                }
-                
-                Button {
-                    fatalError("This crash is a test.")
-                } label: {
-                    Text("💥")
-                        .frame(maxWidth: .infinity)
                 }
             }
 
@@ -126,7 +148,6 @@ struct DeveloperOptionsScreen: View {
             }
         }
         .overlay(effectsView)
-        .compoundList()
         .navigationTitle(L10n.commonDeveloperOptions)
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -185,7 +206,8 @@ private extension Set<TraceLogPack> {
 
 struct DeveloperOptionsScreen_Previews: PreviewProvider {
     static let viewModel = DeveloperOptionsScreenViewModel(developerOptions: ServiceLocator.shared.settings,
-                                                           elementCallBaseURL: ServiceLocator.shared.settings.elementCallBaseURL)
+                                                           elementCallBaseURL: ServiceLocator.shared.settings.elementCallBaseURL,
+                                                           appHooks: AppHooks())
     static var previews: some View {
         NavigationStack {
             DeveloperOptionsScreen(context: viewModel.context)

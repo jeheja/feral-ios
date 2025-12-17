@@ -1,7 +1,8 @@
 //
-// Copyright 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2024-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -10,16 +11,25 @@ import XCTest
 @testable import ElementX
 
 final class RoomListFiltersStateTests: XCTestCase {
+    var appSettings: AppSettings!
+    
     var state: RoomListFiltersState!
+    var allCasesWithoutLowPriority = RoomListFilter.allCases.filter { $0 != .lowPriority }
     
     override func setUp() {
-        state = RoomListFiltersState()
+        AppSettings.resetAllSettings()
+        appSettings = AppSettings()
+        state = RoomListFiltersState(appSettings: appSettings)
+    }
+    
+    override func tearDown() {
+        AppSettings.resetAllSettings()
     }
     
     func testInitialState() {
         XCTAssertFalse(state.isFiltering)
         XCTAssertEqual(state.activeFilters, [])
-        XCTAssertEqual(state.availableFilters, RoomListFilter.allCases)
+        XCTAssertEqual(state.availableFilters, allCasesWithoutLowPriority)
     }
     
     func testSetAndUnsetFilters() {
@@ -30,7 +40,7 @@ final class RoomListFiltersStateTests: XCTestCase {
         state.deactivateFilter(.unreads)
         XCTAssertFalse(state.isFiltering)
         XCTAssertEqual(state.activeFilters, [])
-        XCTAssertEqual(state.availableFilters, RoomListFilter.allCases)
+        XCTAssertEqual(state.availableFilters, allCasesWithoutLowPriority)
     }
     
     func testMutuallyExclusiveFilters() {
@@ -42,7 +52,7 @@ final class RoomListFiltersStateTests: XCTestCase {
         state.deactivateFilter(.people)
         XCTAssertFalse(state.isFiltering)
         XCTAssertEqual(state.activeFilters, [])
-        XCTAssertEqual(state.availableFilters, RoomListFilter.allCases)
+        XCTAssertEqual(state.availableFilters, allCasesWithoutLowPriority)
         
         state.activateFilter(.rooms)
         XCTAssertTrue(state.isFiltering)
@@ -71,7 +81,7 @@ final class RoomListFiltersStateTests: XCTestCase {
         state.clearFilters()
         XCTAssertFalse(state.isFiltering)
         XCTAssertEqual(state.activeFilters, [])
-        XCTAssertEqual(state.availableFilters, RoomListFilter.allCases)
+        XCTAssertEqual(state.availableFilters, allCasesWithoutLowPriority)
     }
     
     func testOrder() {
@@ -81,7 +91,7 @@ final class RoomListFiltersStateTests: XCTestCase {
 
         state.deactivateFilter(.favourites)
         XCTAssertEqual(state.activeFilters, [])
-        XCTAssertEqual(state.availableFilters, RoomListFilter.allCases)
+        XCTAssertEqual(state.availableFilters, allCasesWithoutLowPriority)
         
         state.activateFilter(.rooms)
         XCTAssertEqual(state.activeFilters, [.rooms])
@@ -94,5 +104,26 @@ final class RoomListFiltersStateTests: XCTestCase {
         state.deactivateFilter(.unreads)
         XCTAssertEqual(state.activeFilters, [.rooms])
         XCTAssertEqual(state.availableFilters, [.unreads, .favourites])
+    }
+    
+    // MARK: Low Priority feature flag
+    
+    // Don't forget to add .lowPriority into the mix above when enabling the feature.
+    func testWithLowPriorityFeature() {
+        enableLowPriorityFeature()
+        XCTAssertFalse(state.isFiltering)
+        XCTAssertEqual(state.activeFilters, [])
+        XCTAssertEqual(state.availableFilters, RoomListFilter.allCases)
+        
+        state.activateFilter(.lowPriority)
+        XCTAssertEqual(state.activeFilters, [.lowPriority])
+        XCTAssertEqual(state.availableFilters, [.unreads, .people, .rooms])
+    }
+    
+    // MARK: - Helpers
+    
+    private func enableLowPriorityFeature() {
+        appSettings.lowPriorityFilterEnabled = true
+        state = RoomListFiltersState(appSettings: appSettings)
     }
 }

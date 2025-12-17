@@ -1,7 +1,8 @@
 //
+// Copyright 2025 Element Creations Ltd.
 // Copyright 2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -140,7 +141,7 @@ enum TimelineMediaPreviewItem: Equatable {
     case loading(Loading)
     
     /// Wraps a media file and title to be previewed with QuickLook.
-    class Media: NSObject, QLPreviewItem, Identifiable {
+    @Observable class Media: NSObject, QLPreviewItem, Identifiable {
         fileprivate(set) var timelineItem: EventBasedMessageTimelineItemProtocol
         var fileHandle: MediaFileHandleProxy?
         var downloadError: Error?
@@ -244,12 +245,12 @@ enum TimelineMediaPreviewItem: Equatable {
             }
         }
         
-        var fileSize: Double? {
+        var fileSize: UInt? {
             previewItemURL.flatMap { try? FileManager.default.sizeForItem(at: $0) } ?? expectedFileSize
         }
         
-        private var expectedFileSize: Double? {
-            let fileSize: UInt? = switch timelineItem {
+        private var expectedFileSize: UInt? {
+            switch timelineItem {
             case let audioItem as AudioRoomTimelineItem:
                 audioItem.content.fileSize
             case let fileItem as FileRoomTimelineItem:
@@ -261,8 +262,6 @@ enum TimelineMediaPreviewItem: Equatable {
             default:
                 nil
             }
-            
-            return fileSize.map(Double.init)
         }
         
         var caption: String? {

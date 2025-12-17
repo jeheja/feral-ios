@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -265,7 +266,7 @@ class HomeScreenViewModelTests: XCTestCase {
     }
     
     func testInviteUnreadBadge() async throws {
-        setupViewModel(withInvites: true)
+        setupViewModel(invites: .rooms)
         var invites = context.viewState.rooms.invites
         XCTAssertEqual(invites.count, 2)
         
@@ -288,7 +289,7 @@ class HomeScreenViewModelTests: XCTestCase {
     }
     
     func testAcceptInvite() async throws {
-        setupViewModel(withInvites: true)
+        setupViewModel(invites: .rooms)
         
         let invitedRoomIDs = context.viewState.rooms.invites.compactMap(\.roomID)
         appSettings.seenInvites = Set(invitedRoomIDs)
@@ -302,8 +303,25 @@ class HomeScreenViewModelTests: XCTestCase {
         XCTAssertFalse(notificationManager.removeDeliveredMessageNotificationsForCalled, "The notification will be dismissed when opening the room.")
     }
     
+    func testAcceptSpaceInvite() async throws {
+        setupViewModel(invites: .spaces)
+        
+        let invitedRoomIDs = context.viewState.rooms.invites.compactMap(\.roomID)
+        appSettings.seenInvites = Set(invitedRoomIDs)
+        XCTAssertEqual(invitedRoomIDs.count, 2)
+        
+        let deferred = deferFulfillment(viewModel.actions) {
+            $0 == .presentSpace(SpaceRoomListProxyMock(.init(spaceRoomProxy: SpaceRoomProxyMock(.init(id: invitedRoomIDs[0], isSpace: true)))))
+        }
+        context.send(viewAction: .acceptInvite(roomIdentifier: invitedRoomIDs[0]))
+        try await deferred.fulfill()
+        
+        XCTAssertEqual(appSettings.seenInvites, [invitedRoomIDs[1]])
+        XCTAssertFalse(notificationManager.removeDeliveredMessageNotificationsForCalled, "The notification will be dismissed when opening the room.")
+    }
+    
     func testDeclineInvite() async throws {
-        setupViewModel(withInvites: true)
+        setupViewModel(invites: .rooms)
         let invitedRoomIDs = context.viewState.rooms.invites.compactMap(\.roomID)
         appSettings.seenInvites = Set(invitedRoomIDs)
         XCTAssertEqual(invitedRoomIDs.count, 2)
@@ -331,7 +349,7 @@ class HomeScreenViewModelTests: XCTestCase {
     }
     
     func testDeclineAndBlockInvite() async throws {
-        setupViewModel(withInvites: true)
+        setupViewModel(invites: .rooms)
         let invitedRoomIDs = context.viewState.rooms.invites.compactMap(\.roomID)
         appSettings.seenInvites = Set(invitedRoomIDs)
         XCTAssertEqual(invitedRoomIDs.count, 2)
@@ -345,22 +363,56 @@ class HomeScreenViewModelTests: XCTestCase {
         try await deferredAction.fulfill()
     }
     
+    func testNewSoundBanner() {
+        appSettings.hasSeenNewSoundBanner = false
+        
+        setupViewModel()
+        XCTAssertTrue(context.viewState.shouldShowBanner)
+        XCTAssertTrue(context.viewState.shouldShowNewSoundBanner)
+        
+        context.send(viewAction: .dismissNewSoundBanner)
+        XCTAssertFalse(context.viewState.shouldShowBanner)
+        XCTAssertFalse(context.viewState.shouldShowNewSoundBanner)
+        XCTAssertTrue(appSettings.hasSeenNewSoundBanner)
+    }
+    
     // MARK: - Helpers
     
-    private func setupViewModel(securityStatePublisher: CurrentValuePublisher<SessionSecurityState, Never>? = nil, withInvites: Bool = false) {
+    enum InviteType { case rooms, spaces }
+    
+    private func setupViewModel(securityStatePublisher: CurrentValuePublisher<SessionSecurityState, Never>? = nil, invites: InviteType? = nil) {
         var rooms: [RoomSummary] = .mockRooms
-        if withInvites {
+        
+        switch invites {
+        case .rooms:
             rooms += .mockInvites
+        case .spaces:
+            rooms += .mockSpaceInvites
+        case nil:
+            break
         }
         
         roomSummaryProvider = RoomSummaryProviderMock(.init(state: .loaded(rooms)))
         
         clientProxy = ClientProxyMock(.init(userID: "@mock:client.com",
                                             roomSummaryProvider: roomSummaryProvider))
-        if withInvites {
-            clientProxy.joinRoomViaReturnValue = .success(())
-            clientProxy.joinRoomAliasReturnValue = .success(())
-            clientProxy.roomForIdentifierClosure = { _ in .invited(InvitedRoomProxyMock(.init())) }
+        
+        clientProxy.joinRoomViaReturnValue = .success(())
+        clientProxy.joinRoomAliasReturnValue = .success(())
+        
+        switch invites {
+        case .rooms:
+            clientProxy.roomForIdentifierClosure = { roomID in .invited(InvitedRoomProxyMock(.init(id: roomID))) }
+        case .spaces:
+            clientProxy.roomForIdentifierClosure = { spaceID in .invited(InvitedRoomProxyMock(.init(id: spaceID, isSpace: true))) }
+            
+            let spaceServiceProxy = SpaceServiceProxyMock(.init())
+            spaceServiceProxy.spaceRoomListSpaceIDClosure = { spaceID in
+                .success(SpaceRoomListProxyMock(.init(spaceRoomProxy: SpaceRoomProxyMock(.init(id: spaceID, isSpace: true)))))
+            }
+            clientProxy.underlyingSpaceService = spaceServiceProxy
+        case nil:
+            break
         }
         
         let userSession = UserSessionMock(.init(clientProxy: clientProxy))
@@ -387,6 +439,45 @@ private extension [HomeScreenRoom] {
             } else {
                 false
             }
+        }
+    }
+}
+
+extension HomeScreenViewModelAction: @retroactive Equatable {
+    public static func == (lhs: HomeScreenViewModelAction, rhs: HomeScreenViewModelAction) -> Bool {
+        switch (lhs, rhs) {
+        case (.presentRoom(let lhsID), .presentRoom(let rhsID)):
+            lhsID == rhsID
+        case (.presentRoomDetails(let lhsID), .presentRoomDetails(let rhsID)):
+            lhsID == rhsID
+        case (.presentReportRoom(let lhsID), .presentReportRoom(let rhsID)):
+            lhsID == rhsID
+        case (.presentDeclineAndBlock(let lhsUserID, let lhsRoomID), .presentDeclineAndBlock(let rhsUserID, let rhsRoomID)):
+            lhsUserID == rhsUserID && lhsRoomID == rhsRoomID
+        case (.presentSpace(let lhsSpaceRoomListProxy), .presentSpace(let rhsSpaceRoomListProxy)):
+            lhsSpaceRoomListProxy.id == rhsSpaceRoomListProxy.id
+        case (.roomLeft(let lhsID), .roomLeft(let rhsID)):
+            lhsID == rhsID
+        case (.transferOwnership(let lhsID), .transferOwnership(let rhsID)):
+            lhsID == rhsID
+        case (.presentSecureBackupSettings, .presentSecureBackupSettings):
+            true
+        case (.presentRecoveryKeyScreen, .presentRecoveryKeyScreen):
+            true
+        case (.presentEncryptionResetScreen, .presentEncryptionResetScreen):
+            true
+        case (.presentSettingsScreen, .presentSettingsScreen):
+            true
+        case (.presentFeedbackScreen, .presentFeedbackScreen):
+            true
+        case (.presentStartChatScreen, .presentStartChatScreen):
+            true
+        case (.presentGlobalSearch, .presentGlobalSearch):
+            true
+        case (.logout, .logout):
+            true
+        default:
+            false
         }
     }
 }

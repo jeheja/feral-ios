@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -10,13 +11,12 @@ import SwiftUI
 
 struct RoomDetailsScreenCoordinatorParameters {
     let roomProxy: JoinedRoomProxyProtocol
-    let clientProxy: ClientProxyProtocol
-    let mediaProvider: MediaProviderProtocol
+    let userSession: UserSessionProtocol
     let analyticsService: AnalyticsService
     let userIndicatorController: UserIndicatorControllerProtocol
     let notificationSettings: NotificationSettingsProxyProtocol
     let attributedStringBuilder: AttributedStringBuilderProtocol
-    let appMediator: AppMediatorProtocol
+    let appSettings: AppSettings
 }
 
 enum RoomDetailsScreenCoordinatorAction {
@@ -34,10 +34,12 @@ enum RoomDetailsScreenCoordinatorAction {
     case presentKnockingRequestsListScreen
     case presentSecurityAndPrivacyScreen
     case presentReportRoomScreen
+    case transferOwnership
 }
 
 final class RoomDetailsScreenCoordinator: CoordinatorProtocol {
     private var viewModel: RoomDetailsScreenViewModelProtocol
+    private let isSpace: Bool
     
     private let actionsSubject: PassthroughSubject<RoomDetailsScreenCoordinatorAction, Never> = .init()
     private var cancellables = Set<AnyCancellable>()
@@ -47,15 +49,14 @@ final class RoomDetailsScreenCoordinator: CoordinatorProtocol {
     }
         
     init(parameters: RoomDetailsScreenCoordinatorParameters) {
+        isSpace = parameters.roomProxy.infoPublisher.value.isSpace
         viewModel = RoomDetailsScreenViewModel(roomProxy: parameters.roomProxy,
-                                               clientProxy: parameters.clientProxy,
-                                               mediaProvider: parameters.mediaProvider,
+                                               userSession: parameters.userSession,
                                                analyticsService: parameters.analyticsService,
                                                userIndicatorController: parameters.userIndicatorController,
                                                notificationSettingsProxy: parameters.notificationSettings,
                                                attributedStringBuilder: parameters.attributedStringBuilder,
-                                               appMediator: parameters.appMediator,
-                                               appSettings: ServiceLocator.shared.settings)
+                                               appSettings: parameters.appSettings)
     }
     
     // MARK: - Public
@@ -94,6 +95,8 @@ final class RoomDetailsScreenCoordinator: CoordinatorProtocol {
                     actionsSubject.send(.presentRecipientDetails(userID: userID))
                 case .displayReportRoom:
                     actionsSubject.send(.presentReportRoomScreen)
+                case .transferOwnership:
+                    actionsSubject.send(.transferOwnership)
                 }
             }
             .store(in: &cancellables)
@@ -104,6 +107,10 @@ final class RoomDetailsScreenCoordinator: CoordinatorProtocol {
     }
     
     func toPresentable() -> AnyView {
-        AnyView(RoomDetailsScreen(context: viewModel.context))
+        if isSpace {
+            AnyView(SpaceSettingsScreen(context: viewModel.context))
+        } else {
+            AnyView(RoomDetailsScreen(context: viewModel.context))
+        }
     }
 }

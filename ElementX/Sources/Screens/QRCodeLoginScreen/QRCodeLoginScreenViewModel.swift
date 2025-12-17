@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -34,13 +35,13 @@ class QRCodeLoginScreenViewModel: QRCodeLoginScreenViewModelType, QRCodeLoginScr
     
     override func process(viewAction: QRCodeLoginScreenViewAction) {
         switch viewAction {
-        case .cancel:
+        case .cancel, .errorAction(.cancel):
             actionsSubject.send(.cancel)
-        case .startScan:
+        case .startScan, .errorAction(.startScan):
             Task { await startScanIfPossible() }
-        case .openSettings:
+        case .errorAction(.openSettings):
             appMediator.openAppSettings()
-        case .signInManually:
+        case .errorAction(.signInManually):
             actionsSubject.send(.signInManually)
         }
     }
@@ -110,13 +111,15 @@ class QRCodeLoginScreenViewModel: QRCodeLoginScreenViewModelType, QRCodeLoginScr
             case let .success(session):
                 MXLog.info("QR Login completed")
                 actionsSubject.send(.done(userSession: session))
-            case .failure(let error):
-                handleError(error: error)
+            case .failure(.qrCodeError(let error)):
+                handleError(error)
+            case .failure:
+                handleError(.unknown)
             }
         }
     }
     
-    private func handleError(error: QRCodeLoginServiceError) {
+    private func handleError(_ error: QRCodeLoginError) {
         MXLog.error("Failed to scan the QR code: \(error)")
         switch error {
         case .invalidQRCode:
@@ -125,6 +128,8 @@ class QRCodeLoginScreenViewModel: QRCodeLoginScreenViewModelType, QRCodeLoginScr
             state.state = .scan(.scanFailed(.notAllowed(scannedProvider: scannedProvider, allowedProviders: allowedProviders)))
         case .deviceNotSignedIn:
             state.state = .scan(.scanFailed(.deviceNotSignedIn))
+        case .deviceAlreadySignedIn:
+            state.state = .scan(.scanFailed(.deviceAlreadySignedIn))
         case .cancelled:
             state.state = .error(.cancelled)
         case .connectionInsecure:
@@ -137,7 +142,7 @@ class QRCodeLoginScreenViewModel: QRCodeLoginScreenViewModelType, QRCodeLoginScr
             state.state = .error(.expired)
         case .deviceNotSupported:
             state.state = .error(.deviceNotSupported)
-        case .failedLoggingIn, .unknown:
+        case .unknown:
             state.state = .error(.unknown)
         }
     }

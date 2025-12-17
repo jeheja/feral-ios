@@ -1,10 +1,13 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 import SwiftUI
+
+import OrderedCollections
 
 struct RoomTimelineItemView: View {
     @Environment(\.timelineContext) var context
@@ -26,7 +29,7 @@ struct RoomTimelineItemView: View {
     @ViewBuilder private var timelineView: some View {
         switch viewState.type {
         case .text(let item):
-            TextRoomTimelineView(timelineItem: item)
+            TextRoomTimelineView(timelineItem: item, linkMetadata: linkMetadataForItem(item))
         case .separator(let item):
             SeparatorRoomTimelineView(timelineItem: item)
         case .image(let item):
@@ -64,13 +67,26 @@ struct RoomTimelineItemView: View {
         case .poll(let item):
             PollRoomTimelineView(timelineItem: item)
         case .voice(let item):
-            VoiceMessageRoomTimelineView(timelineItem: item, playerState: context?.viewState.audioPlayerStateProvider?(item.id) ?? AudioPlayerState(id: .timelineItemIdentifier(item.id),
-                                                                                                                                                    title: L10n.commonVoiceMessage,
-                                                                                                                                                    duration: 0))
+            let playerState = context?.viewState.audioPlayerStateProvider?(item.id) ?? AudioPlayerState(id: .timelineItemIdentifier(item.id),
+                                                                                                        title: L10n.commonVoiceMessage,
+                                                                                                        duration: 0)
+            VoiceMessageRoomTimelineView(timelineItem: item, playerState: playerState)
         case .callInvite(let item):
             CallInviteRoomTimelineView(timelineItem: item)
         case .callNotification(let item):
             CallNotificationRoomTimelineView(timelineItem: item)
         }
+    }
+    
+    private func linkMetadataForItem(_ item: TextRoomTimelineItem) -> OrderedDictionary<URL, LinkMetadataProviderItem> {
+        var linkMetadata = OrderedDictionary<URL, LinkMetadataProviderItem>()
+        for url in item.links.prefix(TextRoomTimelineView.maxLinkPreviewsToRender) {
+            if let item = context?.viewState.linkMetadataProvider?.metadataItems[url] {
+                linkMetadata[url] = item
+            } else {
+                linkMetadata[url] = LinkMetadataProviderItem(url: url, metadata: nil)
+            }
+        }
+        return linkMetadata
     }
 }

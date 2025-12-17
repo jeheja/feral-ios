@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -59,10 +60,12 @@ enum Avatars {
 }
 
 enum UserAvatarSizeOnScreen {
+    case chats
+    case spaces
     case timeline
-    case home
     case settings
     case roomDetails
+    case roomMembersList
     case dmDetails
     case startChat
     case memberDetails
@@ -70,6 +73,7 @@ enum UserAvatarSizeOnScreen {
     case readReceipt
     case readReceiptSheet
     case editUserDetails
+    case spaceHeader
     case completionSuggestions
     case blockedUsers
     case knockingUsersBannerStack
@@ -82,14 +86,16 @@ enum UserAvatarSizeOnScreen {
 
     var value: CGFloat {
         switch self {
+        case .chats, .spaces:
+            return 32
+        case .timeline:
+            return 32
         case .readReceipt:
             return 16
         case .readReceiptSheet:
             return 32
-        case .timeline:
-            return 32
-        case .home:
-            return 32
+        case .spaceHeader:
+            return 20
         case .completionSuggestions:
             return 32
         case .blockedUsers:
@@ -98,6 +104,8 @@ enum UserAvatarSizeOnScreen {
             return 52
         case .roomDetails:
             return 44
+        case .roomMembersList:
+            return 32
         case .startChat:
             return 36
         case .memberDetails:
@@ -121,14 +129,18 @@ enum UserAvatarSizeOnScreen {
         case .sessionVerification:
             return 52
         case .threadSummary:
-            return 28
+            return 24
         }
     }
 }
 
 enum RoomAvatarSizeOnScreen {
+    case chats
+    case spaces
+    case spaceSettings
+    case authorizedSpaces
     case timeline
-    case home
+    case leaveSpace
     case messageForwarding
     case globalSearch
     case roomSelection
@@ -136,30 +148,30 @@ enum RoomAvatarSizeOnScreen {
     case notificationSettings
     case roomDirectorySearch
     case joinRoom
+    case spaceHeader
     case completionSuggestions
 
     var value: CGFloat {
         switch self {
+        case .chats, .spaces, .spaceSettings:
+            return 52
+        case .timeline, .leaveSpace, .roomDirectorySearch,
+             .completionSuggestions, .authorizedSpaces:
+            return 32
         case .notificationSettings:
             return 30
-        case .timeline:
-            return 32
-        case .roomDirectorySearch:
-            return 32
-        case .completionSuggestions:
-            return 32
         case .messageForwarding:
             return 36
         case .globalSearch:
             return 36
         case .roomSelection:
             return 36
-        case .home:
-            return 52
         case .details:
             return 96
         case .joinRoom:
-            return 96
+            return 64
+        case .spaceHeader:
+            return 64
         }
     }
 }

@@ -1,7 +1,8 @@
 //
-// Copyright 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2024-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -23,6 +24,8 @@ struct RoomListFiltersEmptyStateView: View {
                 return L10n.screenRoomlistFilterFavouritesEmptyStateTitle
             case .invites:
                 return L10n.screenRoomlistFilterInvitesEmptyStateTitle
+            case .lowPriority:
+                return L10n.screenRoomlistFilterLowPriorityEmptyStateTitle
             }
         }
         return L10n.screenRoomlistFilterMixedEmptyStateTitle
@@ -55,9 +58,11 @@ struct RoomListFiltersEmptyStateView_Previews: PreviewProvider, TestablePreview 
     static var previews: some View {
         VStack(spacing: 24) {
             ForEach(RoomListFilter.allCases) { filter in
-                RoomListFiltersEmptyStateView(state: .init(activeFilters: [filter]))
+                RoomListFiltersEmptyStateView(state: .init(activeFilters: [filter],
+                                                           appSettings: ServiceLocator.shared.settings))
             }
-            RoomListFiltersEmptyStateView(state: .init(activeFilters: [.people, .favourites]))
+            RoomListFiltersEmptyStateView(state: .init(activeFilters: [.people, .favourites],
+                                                       appSettings: ServiceLocator.shared.settings))
         }
         .padding(.bottom)
         .previewLayout(.sizeThatFits)

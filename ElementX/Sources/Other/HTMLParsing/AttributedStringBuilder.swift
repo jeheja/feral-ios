@@ -1,25 +1,47 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
 import Compound
-import DTCoreText
-import Foundation
 import LRUCache
 import MatrixRustSDK
+import SwiftSoup
+import UIKit
+
+protocol MentionBuilderProtocol {
+    func handleUserMention(for attributedString: NSMutableAttributedString, in range: NSRange, url: URL, userID: String, userDisplayName: String?)
+    func handleRoomIDMention(for attributedString: NSMutableAttributedString, in range: NSRange, url: URL, roomID: String)
+    func handleRoomAliasMention(for attributedString: NSMutableAttributedString, in range: NSRange, url: URL, roomAlias: String, roomDisplayName: String?)
+    func handleEventOnRoomAliasMention(for attributedString: NSMutableAttributedString, in range: NSRange, url: URL, eventID: String, roomAlias: String)
+    func handleEventOnRoomIDMention(for attributedString: NSMutableAttributedString, in range: NSRange, url: URL, eventID: String, roomID: String)
+    func handleAllUsersMention(for attributedString: NSMutableAttributedString, in range: NSRange)
+}
+
+extension NSAttributedString.Key {
+    static let MatrixBlockquote: NSAttributedString.Key = .init(rawValue: BlockquoteAttribute.name)
+    static let MatrixUserID: NSAttributedString.Key = .init(rawValue: UserIDAttribute.name)
+    static let MatrixUserDisplayName: NSAttributedString.Key = .init(rawValue: UserDisplayNameAttribute.name)
+    static let MatrixRoomDisplayName: NSAttributedString.Key = .init(rawValue: RoomDisplayNameAttribute.name)
+    static let MatrixRoomID: NSAttributedString.Key = .init(rawValue: RoomIDAttribute.name)
+    static let MatrixRoomAlias: NSAttributedString.Key = .init(rawValue: RoomAliasAttribute.name)
+    static let MatrixEventOnRoomID: NSAttributedString.Key = .init(rawValue: EventOnRoomIDAttribute.name)
+    static let MatrixEventOnRoomAlias: NSAttributedString.Key = .init(rawValue: EventOnRoomAliasAttribute.name)
+    static let MatrixAllUsersMention: NSAttributedString.Key = .init(rawValue: AllUsersMentionAttribute.name)
+    static let CodeBlock: NSAttributedString.Key = .init(rawValue: CodeBlockAttribute.name)
+}
 
 struct AttributedStringBuilder: AttributedStringBuilderProtocol {
-    private let cacheKey: String
-    private let temporaryBlockquoteMarkingColor = UIColor.magenta
-    private let temporaryCodeBlockMarkingColor = UIColor.cyan
-    private let mentionBuilder: MentionBuilderProtocol
-    
     private static let defaultKey = "default"
     
-    private static let cacheDispatchQueue = DispatchQueue(label: "io.element.elementx.attributed_string_builder_cache")
+    private let cacheKey: String
+    private let mentionBuilder: MentionBuilderProtocol
+    
+    private static let attributeMSC4286 = "msc4286-external-payment-details"
+    private static let cacheDispatchQueue = DispatchQueue(label: "io.element.elementx.attributed_string_builder_v2_cache")
     private static var caches: [String: LRUCache<String, AttributedString>] = [:]
 
     static func invalidateCaches() {
@@ -41,9 +63,8 @@ struct AttributedStringBuilder: AttributedStringBuilderProtocol {
         }
 
         let mutableAttributedString = NSMutableAttributedString(string: string)
-        removeDefaultForegroundColors(mutableAttributedString)
         addLinksAndMentions(mutableAttributedString)
-        detectPermalinks(mutableAttributedString)
+        addMatrixEntityPermalinkAttributesTo(mutableAttributedString)
         
         let result = try? AttributedString(mutableAttributedString, including: \.elementX)
         Self.cacheValue(result, forKey: string, cacheKey: cacheKey)
@@ -69,49 +90,188 @@ struct AttributedStringBuilder: AttributedStringBuilderProtocol {
                 
         let htmlString = originalHTMLString.replacingHtmlBreaksOccurrences()
         
-        guard let data = htmlString.data(using: .utf8) else {
+        let doc = try? SwiftSoup.parseBodyFragment(htmlString)
+        
+        guard let body = doc?.body() else {
             return nil
         }
         
-        let defaultFont = UIFont.preferredFont(forTextStyle: .body)
-        
-        let parsingOptions: [String: Any] = [
-            DTUseiOS6Attributes: true,
-            DTDefaultFontFamily: defaultFont.familyName,
-            DTDefaultFontName: defaultFont.fontName,
-            DTDefaultFontSize: defaultFont.pointSize,
-            DTDefaultStyleSheet: DTCSSStylesheet(styleBlock: defaultCSS) as Any,
-            DTDefaultLinkDecoration: false
-        ]
-        
-        guard let builder = DTHTMLAttributedStringBuilder(html: data, options: parsingOptions, documentAttributes: nil) else {
-            return nil
-        }
-        
-        builder.willFlushCallback = { element in
-            element?.sanitize(font: defaultFont)
-        }
-            
-        guard let attributedString = builder.generatedAttributedString() else {
-            return nil
-        }
-        
-        let mutableAttributedString = NSMutableAttributedString(attributedString: attributedString)
-        removeDefaultForegroundColors(mutableAttributedString)
+        var listIndex = 1
+        let mutableAttributedString = attributedString(element: body, documentBody: body, preserveFormatting: false, listTag: nil, listIndex: &listIndex, indentLevel: 0)
         detectPhishingAttempts(mutableAttributedString)
         addLinksAndMentions(mutableAttributedString)
-        replaceMarkedBlockquotes(mutableAttributedString)
-        replaceMarkedCodeBlocks(mutableAttributedString)
-        detectPermalinks(mutableAttributedString)
-        removeDTCoreTextArtifacts(mutableAttributedString)
+        addMatrixEntityPermalinkAttributesTo(mutableAttributedString)
+        removeParsingArtefacts(mutableAttributedString)
         
         let result = try? AttributedString(mutableAttributedString, including: \.elementX)
-        Self.cacheValue(result, forKey: htmlString, cacheKey: cacheKey)
+        Self.cacheValue(result, forKey: originalHTMLString, cacheKey: cacheKey)
         
         return result
     }
-    
+        
     // MARK: - Private
+    
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
+    func attributedString(element: Element,
+                          documentBody: Element,
+                          preserveFormatting: Bool,
+                          listTag: String?,
+                          listIndex: inout Int,
+                          indentLevel: Int) -> NSMutableAttributedString {
+        let result = NSMutableAttributedString()
+        
+        for node in element.getChildNodes() {
+            if let textNode = node as? TextNode {
+                // If this node is plain text just append its preformatted contents
+                if node.parent() == documentBody {
+                    result.append(NSAttributedString(string: textNode.getWholeText()))
+                    continue
+                }
+                
+                var text = preserveFormatting ? textNode.getWholeText() : textNode.text()
+                
+                // There seem to be sibling TextNodes following every </br> tag that
+                // contain one single space character which we don't want as it
+                // breaks line head indents.
+                if (node.previousSibling() as? Element)?.tagName() == "br" {
+                    text.trimPrefix(" ")
+                }
+                 
+                result.append(NSAttributedString(string: text))
+                continue
+            }
+            
+            guard let childElement = node as? Element else {
+                continue
+            }
+            
+            let tag = childElement.tagName().lowercased()
+            var content = NSMutableAttributedString()
+            var childIndex = 1
+            
+            let fontPointSize = UIFont.preferredFont(forTextStyle: .body).pointSize
+            
+            switch tag {
+            case "h1", "h2", "h3", "h4", "h5", "h6":
+                let level = max(3, Int(String(tag.dropFirst())) ?? 1)
+                let size: CGFloat = fontPointSize + CGFloat(6 - level) * 2
+                content = attributedString(element: childElement, documentBody: documentBody, preserveFormatting: preserveFormatting, listTag: listTag, listIndex: &childIndex, indentLevel: indentLevel)
+                content.append(NSAttributedString(string: "\n"))
+                content.setFontPreservingSymbolicTraits(UIFont.boldSystemFont(ofSize: size))
+
+            case "p", "div":
+                content = attributedString(element: childElement, documentBody: documentBody, preserveFormatting: preserveFormatting, listTag: listTag, listIndex: &childIndex, indentLevel: indentLevel)
+                content.append(NSAttributedString(string: "\n"))
+                
+            case "br":
+                content = NSMutableAttributedString(string: "\n")
+                
+            case "b", "strong":
+                content = attributedString(element: childElement, documentBody: documentBody, preserveFormatting: preserveFormatting, listTag: listTag, listIndex: &childIndex, indentLevel: indentLevel)
+                content.setFontPreservingSymbolicTraits(UIFont.boldSystemFont(ofSize: fontPointSize))
+                
+            case "i", "em":
+                content = attributedString(element: childElement, documentBody: documentBody, preserveFormatting: preserveFormatting, listTag: listTag, listIndex: &childIndex, indentLevel: indentLevel)
+                content.setFontPreservingSymbolicTraits(UIFont.italicSystemFont(ofSize: fontPointSize))
+                
+            case "u":
+                content = attributedString(element: childElement, documentBody: documentBody, preserveFormatting: preserveFormatting, listTag: listTag, listIndex: &childIndex, indentLevel: indentLevel)
+                content.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: NSRange(location: 0, length: content.length))
+                
+            case "s", "del":
+                content = attributedString(element: childElement, documentBody: documentBody, preserveFormatting: preserveFormatting, listTag: listTag, listIndex: &childIndex, indentLevel: indentLevel)
+                content.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: NSRange(location: 0, length: content.length))
+                
+            case "sup":
+                content = attributedString(element: childElement, documentBody: documentBody, preserveFormatting: preserveFormatting, listTag: listTag, listIndex: &childIndex, indentLevel: indentLevel)
+                content.addAttribute(.baselineOffset, value: 6, range: NSRange(location: 0, length: content.length))
+                content.setFontPreservingSymbolicTraits(UIFont.systemFont(ofSize: fontPointSize * 0.7))
+                
+            case "sub":
+                content = attributedString(element: childElement, documentBody: documentBody, preserveFormatting: preserveFormatting, listTag: listTag, listIndex: &childIndex, indentLevel: indentLevel)
+                content.addAttribute(.baselineOffset, value: -4, range: NSRange(location: 0, length: content.length))
+                content.setFontPreservingSymbolicTraits(UIFont.systemFont(ofSize: fontPointSize * 0.7))
+                
+            case "blockquote":
+                content = attributedString(element: childElement, documentBody: documentBody, preserveFormatting: preserveFormatting, listTag: listTag, listIndex: &childIndex, indentLevel: indentLevel)
+                content.addAttribute(.MatrixBlockquote, value: true, range: NSRange(location: 0, length: content.length))
+                
+            case "code", "pre":
+                let preserveFormatting = preserveFormatting || tag == "pre"
+                content = attributedString(element: childElement, documentBody: documentBody, preserveFormatting: preserveFormatting, listTag: listTag, listIndex: &childIndex, indentLevel: indentLevel)
+                
+                let fontPointSize = fontPointSize * 0.9 // Intentionally shrink code blocks by 10%
+                content.setFontPreservingSymbolicTraits(UIFont.monospacedSystemFont(ofSize: fontPointSize, weight: .regular))
+                
+                content.addAttribute(.CodeBlock, value: true, range: NSRange(location: 0, length: content.length))
+                content.addAttribute(.backgroundColor, value: UIColor.compound._bgCodeBlock as Any, range: NSRange(location: 0, length: content.length))
+                
+                // Don't allow identifiers or links in code blocks
+                content.removeAttribute(.MatrixRoomID, range: NSRange(location: 0, length: content.length))
+                content.removeAttribute(.MatrixRoomAlias, range: NSRange(location: 0, length: content.length))
+                content.removeAttribute(.MatrixUserID, range: NSRange(location: 0, length: content.length))
+                content.removeAttribute(.MatrixEventOnRoomID, range: NSRange(location: 0, length: content.length))
+                content.removeAttribute(.MatrixEventOnRoomAlias, range: NSRange(location: 0, length: content.length))
+                content.removeAttribute(.MatrixAllUsersMention, range: NSRange(location: 0, length: content.length))
+                content.removeAttribute(.link, range: NSRange(location: 0, length: content.length))
+                
+            case "hr":
+                content = NSMutableAttributedString(string: "\n")
+                
+            case "a":
+                content = attributedString(element: childElement, documentBody: documentBody, preserveFormatting: preserveFormatting, listTag: listTag, listIndex: &childIndex, indentLevel: indentLevel)
+                if let href = try? childElement.attr("href"), let url = URL(string: href) {
+                    content.addAttribute(.link, value: url, range: NSRange(location: 0, length: content.length))
+                }
+                
+            case "span":
+                if childElement.dataset()[Self.attributeMSC4286] == nil {
+                    content = attributedString(element: childElement, documentBody: documentBody, preserveFormatting: preserveFormatting, listTag: listTag, listIndex: &childIndex, indentLevel: indentLevel)
+                }
+                
+            case "ul", "ol":
+                var listIndex = 1
+                if let startAttribute = try? childElement.attr("start"), let startIndex = Int(startAttribute) {
+                    listIndex = startIndex
+                }
+                
+                content = attributedString(element: childElement, documentBody: documentBody, preserveFormatting: preserveFormatting, listTag: tag, listIndex: &listIndex, indentLevel: indentLevel + 1)
+                
+                if indentLevel > 0 {
+                    content.insert(NSAttributedString("\n"), at: 0)
+                }
+
+            case "li":
+                var bullet = String(repeating: "  ", count: indentLevel)
+                if listTag == "ol" {
+                    bullet += "\(listIndex). "
+                    listIndex += 1
+                } else {
+                    bullet += "• "
+                }
+                
+                content = attributedString(element: childElement, documentBody: documentBody, preserveFormatting: preserveFormatting, listTag: listTag, listIndex: &childIndex, indentLevel: indentLevel + 1)
+                content.insert(NSAttributedString(string: bullet), at: 0)
+                if !(content.string.last?.isNewline ?? false) {
+                    content.append(NSAttributedString(string: "\n"))
+                }
+                
+            case "img":
+                if let alt = try? childElement.attr("alt"), !alt.isEmpty {
+                    content = NSMutableAttributedString(string: "[img: \(alt)]")
+                } else {
+                    content = NSMutableAttributedString(string: "[img]")
+                }
+                
+            default:
+                content = attributedString(element: childElement, documentBody: documentBody, preserveFormatting: preserveFormatting, listTag: listTag, listIndex: &childIndex, indentLevel: indentLevel)
+            }
+            
+            result.append(content)
+        }
+        
+        return result
+    }
     
     private static func cacheValue(_ value: AttributedString?, forKey key: String, cacheKey: String) {
         cacheDispatchQueue.sync {
@@ -130,10 +290,6 @@ struct AttributedStringBuilder: AttributedStringBuilderProtocol {
         }
         
         return result
-    }
-    
-    private func removeDefaultForegroundColors(_ attributedString: NSMutableAttributedString) {
-        attributedString.removeAttribute(.foregroundColor, range: .init(location: 0, length: attributedString.length))
     }
     
     // swiftlint:disable:next cyclomatic_complexity
@@ -192,9 +348,15 @@ struct AttributedStringBuilder: AttributedStringBuilderProtocol {
         
         // Sort the links by length so the longest one always takes priority
         matches.sorted { $0.range.length > $1.range.length }.forEach { [attributedString] match in
+            // Don't highlight links within codeblocks
+            let isInCodeBlock = attributedString.attribute(.CodeBlock, at: match.range.location, effectiveRange: nil) != nil
+            if isInCodeBlock {
+                return
+            }
+            
             var hasLink = false
             attributedString.enumerateAttribute(.link, in: match.range, options: []) { value, _, stop in
-                if value != nil {
+                if value != nil, !isInCodeBlock {
                     hasLink = true
                     stop.pointee = true
                 }
@@ -203,12 +365,7 @@ struct AttributedStringBuilder: AttributedStringBuilderProtocol {
             if hasLink {
                 return
             }
-            
-            // Don't add any extra attributes within codeblocks
-            if attributedString.attribute(.backgroundColor, at: match.range.location, effectiveRange: nil) as? UIColor == temporaryCodeBlockMarkingColor {
-                return
-            }
-            
+                        
             switch match.type {
             case .atRoom:
                 attributedString.addAttribute(.MatrixAllUsersMention, value: true, range: match.range)
@@ -229,42 +386,7 @@ struct AttributedStringBuilder: AttributedStringBuilderProtocol {
         }
     }
     
-    private func replaceMarkedBlockquotes(_ attributedString: NSMutableAttributedString) {
-        // According to blockquotes in the string, DTCoreText can apply 2 policies:
-        //     - define a `DTTextBlocksAttribute` attribute on a <blockquote> block
-        //     - or, just define a `NSBackgroundColorAttributeName` attribute
-        attributedString.enumerateAttribute(.DTTextBlocks, in: .init(location: 0, length: attributedString.length), options: []) { value, range, _ in
-            guard let value = value as? NSArray,
-                  let dtTextBlock = value.firstObject as? DTTextBlock,
-                  dtTextBlock.backgroundColor == temporaryBlockquoteMarkingColor else {
-                return
-            }
-            
-            attributedString.addAttribute(.MatrixBlockquote, value: true, range: range)
-        }
-        
-        attributedString.enumerateAttribute(.backgroundColor, in: .init(location: 0, length: attributedString.length), options: []) { value, range, _ in
-            guard let value = value as? UIColor,
-                  value == temporaryBlockquoteMarkingColor else {
-                return
-            }
-            
-            attributedString.removeAttribute(.backgroundColor, range: range)
-            attributedString.addAttribute(.MatrixBlockquote, value: true, range: range)
-        }
-    }
-    
-    private func replaceMarkedCodeBlocks(_ attributedString: NSMutableAttributedString) {
-        attributedString.enumerateAttribute(.backgroundColor, in: .init(location: 0, length: attributedString.length), options: []) { value, range, _ in
-            if let value = value as? UIColor,
-               value == temporaryCodeBlockMarkingColor {
-                attributedString.addAttribute(.backgroundColor, value: UIColor.compound._bgCodeBlock as Any, range: range)
-                attributedString.removeAttribute(.link, range: range)
-            }
-        }
-    }
-    
-    func detectPermalinks(_ attributedString: NSMutableAttributedString) {
+    func addMatrixEntityPermalinkAttributesTo(_ attributedString: NSMutableAttributedString) {
         attributedString.enumerateAttribute(.link, in: .init(location: 0, length: attributedString.length), options: []) { value, range, _ in
             if value != nil {
                 if let url = value as? URL,
@@ -326,75 +448,18 @@ struct AttributedStringBuilder: AttributedStringBuilderProtocol {
         
         attributedString.addAttribute(.link, value: finalURL, range: range)
     }
-        
-    private func removeDTCoreTextArtifacts(_ attributedString: NSMutableAttributedString) {
+    
+    private func removeParsingArtefacts(_ attributedString: NSMutableAttributedString) {
         guard attributedString.length > 0 else {
             return
         }
         
-        // DTCoreText adds a newline at the end of plain text ( https://github.com/Cocoanetics/DTCoreText/issues/779 )
-        // or after a blockquote section.
-        // Trim trailing whitespace and newlines in the string content
+        // Ruma's markdown parsing sometimes inserts extra trailing new lines
+        // https://github.com/ruma/ruma/blob/c3dc6de3e03b2ca131eab889a9d310ef160b95ac/crates/ruma-events/src/room/message.rs#L962
         while (attributedString.string as NSString).hasSuffixCharacter(from: .whitespacesAndNewlines) {
             attributedString.deleteCharacters(in: .init(location: attributedString.length - 1, length: 1))
         }
     }
-    
-    private var defaultCSS: String {
-        """
-                blockquote {
-                    background: \(temporaryBlockquoteMarkingColor.toHexString());
-                    display: block;
-                }
-                pre,code {
-                    background-color: \(temporaryCodeBlockMarkingColor.toHexString());
-                    display: inline;
-                    white-space: pre;
-                    font-size: 0.9em;
-                    -coretext-fontname: .AppleSystemUIFontMonospaced-Regular;
-                }
-                h1,h2,h3 {
-                    font-size: 1.2em;
-                }
-        """
-    }
-}
-
-extension UIColor {
-    func toHexString() -> String {
-        var red: CGFloat = 0.0
-        var green: CGFloat = 0.0
-        var blue: CGFloat = 0.0
-        var alpha: CGFloat = 0.0
-        
-        getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-        
-        let rgb = Int(red * 255) << 16 | Int(green * 255) << 8 | Int(blue * 255) << 0
-        
-        return NSString(format: "#%06x", rgb) as String
-    }
-}
-
-extension NSAttributedString.Key {
-    static let DTTextBlocks: NSAttributedString.Key = .init(rawValue: DTTextBlocksAttribute)
-    static let MatrixBlockquote: NSAttributedString.Key = .init(rawValue: BlockquoteAttribute.name)
-    static let MatrixUserID: NSAttributedString.Key = .init(rawValue: UserIDAttribute.name)
-    static let MatrixUserDisplayName: NSAttributedString.Key = .init(rawValue: UserDisplayNameAttribute.name)
-    static let MatrixRoomDisplayName: NSAttributedString.Key = .init(rawValue: RoomDisplayNameAttribute.name)
-    static let MatrixRoomID: NSAttributedString.Key = .init(rawValue: RoomIDAttribute.name)
-    static let MatrixRoomAlias: NSAttributedString.Key = .init(rawValue: RoomAliasAttribute.name)
-    static let MatrixEventOnRoomID: NSAttributedString.Key = .init(rawValue: EventOnRoomIDAttribute.name)
-    static let MatrixEventOnRoomAlias: NSAttributedString.Key = .init(rawValue: EventOnRoomAliasAttribute.name)
-    static let MatrixAllUsersMention: NSAttributedString.Key = .init(rawValue: AllUsersMentionAttribute.name)
-}
-
-protocol MentionBuilderProtocol {
-    func handleUserMention(for attributedString: NSMutableAttributedString, in range: NSRange, url: URL, userID: String, userDisplayName: String?)
-    func handleRoomIDMention(for attributedString: NSMutableAttributedString, in range: NSRange, url: URL, roomID: String)
-    func handleRoomAliasMention(for attributedString: NSMutableAttributedString, in range: NSRange, url: URL, roomAlias: String, roomDisplayName: String?)
-    func handleEventOnRoomAliasMention(for attributedString: NSMutableAttributedString, in range: NSRange, url: URL, eventID: String, roomAlias: String)
-    func handleEventOnRoomIDMention(for attributedString: NSMutableAttributedString, in range: NSRange, url: URL, eventID: String, roomID: String)
-    func handleAllUsersMention(for attributedString: NSMutableAttributedString, in range: NSRange)
 }
 
 private struct TextParsingMatch {
@@ -418,5 +483,37 @@ private struct TextParsingMatch {
         default:
             return nil
         }
+    }
+}
+
+private extension NSMutableAttributedString {
+    func setFontPreservingSymbolicTraits(_ newFont: UIFont) {
+        enumerateAttribute(.font, in: NSRange(location: 0, length: length)) { value, range, _ in
+            if let oldFont = value as? UIFont {
+                // keep the traits (bold, italic, etc.)
+                let traits = oldFont.fontDescriptor.symbolicTraits
+                if let descriptor = newFont.fontDescriptor.withSymbolicTraits(traits) {
+                    let updatedFont = UIFont(descriptor: descriptor, size: newFont.pointSize)
+                    addAttribute(.font, value: updatedFont, range: range)
+                } else {
+                    // fallback if traits can't be applied
+                    addAttribute(.font, value: newFont, range: range)
+                }
+            } else {
+                addAttribute(.font, value: newFont, range: range)
+            }
+        }
+    }
+}
+
+private extension NSString {
+    func hasSuffixCharacter(from characterSet: CharacterSet) -> Bool {
+        if length == 0 {
+            return false
+        }
+        
+        let lastChar = character(at: length - 1)
+        
+        return (characterSet as NSCharacterSet).characterIsMember(lastChar)
     }
 }

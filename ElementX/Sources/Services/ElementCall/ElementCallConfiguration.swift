@@ -1,7 +1,8 @@
 //
-// Copyright 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2024-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -21,8 +22,7 @@ struct ElementCallConfiguration {
                       clientID: String,
                       elementCallBaseURL: URL,
                       elementCallBaseURLOverride: URL?,
-                      colorScheme: ColorScheme,
-                      notifyOtherParticipants: Bool)
+                      colorScheme: ColorScheme)
     }
     
     /// The type of call being configured i.e. whether it's an external URL or an internal room call.
@@ -59,15 +59,13 @@ struct ElementCallConfiguration {
          clientID: String,
          elementCallBaseURL: URL,
          elementCallBaseURLOverride: URL?,
-         colorScheme: ColorScheme,
-         notifyOtherParticipants: Bool) {
+         colorScheme: ColorScheme) {
         kind = .roomCall(roomProxy: roomProxy,
                          clientProxy: clientProxy,
                          clientID: clientID,
                          elementCallBaseURL: elementCallBaseURL,
                          elementCallBaseURLOverride: elementCallBaseURLOverride,
-                         colorScheme: colorScheme,
-                         notifyOtherParticipants: notifyOtherParticipants)
+                         colorScheme: colorScheme)
     }
     
     /// A string representing the call being configured.
@@ -75,7 +73,7 @@ struct ElementCallConfiguration {
         switch kind {
         case .genericCallLink(let url):
             url.absoluteString
-        case .roomCall(let roomProxy, _, _, _, _, _, _):
+        case .roomCall(let roomProxy, _, _, _, _, _):
             roomProxy.id
         }
     }

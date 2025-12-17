@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -126,26 +127,26 @@ struct SecureBackupLogoutConfirmationScreen_Previews: PreviewProvider, TestableP
             SecureBackupLogoutConfirmationScreen(context: waitingViewModel.context)
         }
         .previewDisplayName("Waiting")
-        .snapshotPreferences(expect: waitingViewModel.context.observe(\.viewState.mode).map { $0 == .waitingToStart(hasStalled: false) }.eraseToStream())
+        .snapshotPreferences(expect: waitingViewModel.context.observe(\.viewState.mode).map { $0 == .waitingToStart(hasStalled: false) })
         
         NavigationStack {
             SecureBackupLogoutConfirmationScreen(context: ongoingViewModel.context)
         }
         .previewDisplayName("Ongoing")
-        .snapshotPreferences(expect: ongoingViewModel.context.observe(\.viewState.mode).map { $0 == .backupOngoing(progress: 0.5) }.eraseToStream())
+        .snapshotPreferences(expect: ongoingViewModel.context.observe(\.viewState.mode).map { $0 == .backupOngoing(progress: 0.5) })
         
         // Uses the same view model as Waiting but with a different expectation.
         NavigationStack {
             SecureBackupLogoutConfirmationScreen(context: waitingViewModel.context)
         }
         .previewDisplayName("Stalled")
-        .snapshotPreferences(expect: waitingViewModel.context.observe(\.viewState.mode).map { $0 == .waitingToStart(hasStalled: true) }.eraseToStream())
+        .snapshotPreferences(expect: waitingViewModel.context.observe(\.viewState.mode).map { $0 == .waitingToStart(hasStalled: true) })
         
         NavigationStack {
             SecureBackupLogoutConfirmationScreen(context: offlineViewModel.context)
         }
         .previewDisplayName("Offline")
-        .snapshotPreferences(expect: offlineViewModel.context.observe(\.viewState.mode).map { $0 == .offline }.eraseToStream())
+        .snapshotPreferences(expect: offlineViewModel.context.observe(\.viewState.mode).map { $0 == .offline })
     }
     
     static func makeViewModel(mode: SecureBackupLogoutConfirmationScreenViewMode) -> SecureBackupLogoutConfirmationScreenViewModel {
@@ -161,14 +162,9 @@ struct SecureBackupLogoutConfirmationScreen_Previews: PreviewProvider, TestableP
         }
         
         let reachability: NetworkMonitorReachability = mode == .offline ? .unreachable : .reachable
-        let networkMonitor = NetworkMonitorMock()
-        networkMonitor.underlyingReachabilityPublisher = CurrentValueSubject<NetworkMonitorReachability, Never>(reachability).asCurrentValuePublisher()
-        
-        let appMediator = AppMediatorMock()
-        appMediator.underlyingNetworkMonitor = networkMonitor
         
         let viewModel = SecureBackupLogoutConfirmationScreenViewModel(secureBackupController: secureBackupController,
-                                                                      appMediator: appMediator)
+                                                                      homeserverReachabilityPublisher: .init(reachability))
         
         if mode != .saveRecoveryKey {
             viewModel.context.send(viewAction: .logout)

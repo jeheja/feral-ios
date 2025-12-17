@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -120,7 +121,9 @@ struct TimelineItemBubbledStylerView<Content: View>: View {
                     .onTapGesture { }
             }
             
-            if context.viewState.timelineKind != .thread, let threadSummary = timelineItem.properties.threadSummary {
+            if context.viewState.areThreadsEnabled,
+               !context.viewState.timelineKind.isThread,
+               let threadSummary = timelineItem.properties.threadSummary {
                 TimelineThreadSummaryView(threadSummary: threadSummary) {
                     context.send(viewAction: .displayThread(itemID: timelineItem.id))
                 }
@@ -150,12 +153,14 @@ struct TimelineItemBubbledStylerView<Content: View>: View {
             }
             .contextMenu {
                 let provider = TimelineItemMenuActionProvider(timelineItem: timelineItem,
+                                                              canCurrentUserSendMessage: context.viewState.canCurrentUserSendMessage,
                                                               canCurrentUserRedactSelf: context.viewState.canCurrentUserRedactSelf,
                                                               canCurrentUserRedactOthers: context.viewState.canCurrentUserRedactOthers,
                                                               canCurrentUserPin: context.viewState.canCurrentUserPin,
                                                               pinnedEventIDs: context.viewState.pinnedEventIDs,
                                                               isDM: context.viewState.isDirectOneToOneRoom,
                                                               isViewSourceEnabled: context.viewState.isViewSourceEnabled,
+                                                              areThreadsEnabled: context.viewState.areThreadsEnabled,
                                                               timelineKind: context.viewState.timelineKind,
                                                               emojiProvider: context.viewState.emojiProvider)
                 TimelineItemMacContextMenu(item: timelineItem, actionProvider: provider) { action in
@@ -177,13 +182,13 @@ struct TimelineItemBubbledStylerView<Content: View>: View {
     @ViewBuilder
     var contentWithReply: some View {
         TimelineBubbleLayout(spacing: 8) {
-            if context.viewState.timelineKind != .thread, timelineItem.properties.isThreaded {
+            if !context.viewState.timelineKind.isThread, timelineItem.properties.isThreaded {
                 ThreadDecorator()
                     .padding(.leading, 4)
                     .layoutPriority(TimelineBubbleLayout.Priority.regularText)
             }
             
-            if shouldShowReplyDetails, let replyDetails = timelineItem.properties.replyDetails {
+            if let replyDetails = timelineItem.properties.replyDetails {
                 // The rendered reply bubble with a greedy width. The custom layout prevents
                 // the infinite width from increasing the overall width of the view.
                 
@@ -195,7 +200,9 @@ struct TimelineItemBubbledStylerView<Content: View>: View {
                     .cornerRadius(8)
                     .layoutPriority(TimelineBubbleLayout.Priority.visibleQuote)
                     .onTapGesture {
-                        context.send(viewAction: .focusOnEventID(replyDetails.eventID))
+                        if context.viewState.timelineKind != .pinned {
+                            context.send(viewAction: .focusOnEventID(replyDetails.eventID))
+                        }
                     }
                 
                 // Add a fixed width reply bubble that is used for layout calculations but won't be rendered.
@@ -210,10 +217,6 @@ struct TimelineItemBubbledStylerView<Content: View>: View {
                 .layoutPriority(TimelineBubbleLayout.Priority.regularText)
                 .cornerRadius(timelineItem.contentCornerRadius)
         }
-    }
-    
-    private var shouldShowReplyDetails: Bool {
-        !timelineItem.properties.isThreaded || (timelineItem.properties.isThreaded && context.viewState.timelineKind != .thread)
     }
     
     private var messageBubbleTopPadding: CGFloat {
@@ -309,6 +312,7 @@ private struct PinnedIndicatorViewModifier: ViewModifier {
     private var pinnedIndicator: some View {
         CompoundIcon(\.pinSolid, size: .xSmall, relativeTo: .compound.bodyMD)
             .foregroundStyle(Color.compound.iconTertiary)
+            .accessibilityLabel(L10n.commonPinned)
     }
 }
 
@@ -321,22 +325,42 @@ private extension View {
 // MARK: - Previews
 
 struct TimelineItemBubbledStylerView_Previews: PreviewProvider, TestablePreview {
-    static let viewModel = TimelineViewModel.mock
+    static let viewModel: TimelineViewModel = {
+        let appSettings = AppSettings()
+        appSettings.threadsEnabled = true
+        
+        let roomProxy = JoinedRoomProxyMock(.init())
+        return TimelineViewModel(roomProxy: roomProxy,
+                                 focussedEventID: nil,
+                                 timelineController: MockTimelineController(),
+                                 userSession: UserSessionMock(.init()),
+                                 mediaPlayerProvider: MediaPlayerProviderMock(),
+                                 userIndicatorController: ServiceLocator.shared.userIndicatorController,
+                                 appMediator: AppMediatorMock.default,
+                                 appSettings: appSettings,
+                                 analyticsService: ServiceLocator.shared.analytics,
+                                 emojiProvider: EmojiProvider(appSettings: ServiceLocator.shared.settings),
+                                 linkMetadataProvider: LinkMetadataProvider(),
+                                 timelineControllerFactory: TimelineControllerFactoryMock(.init()))
+    }()
+    
     static let viewModelWithPins: TimelineViewModel = {
+        let appSettings = AppSettings()
+        appSettings.threadsEnabled = true
+        
         let roomProxy = JoinedRoomProxyMock(.init(name: "Preview Room", pinnedEventIDs: ["pinned"]))
         return TimelineViewModel(roomProxy: roomProxy,
                                  focussedEventID: nil,
                                  timelineController: MockTimelineController(),
-                                 mediaProvider: MediaProviderMock(configuration: .init()),
+                                 userSession: UserSessionMock(.init()),
                                  mediaPlayerProvider: MediaPlayerProviderMock(),
-                                 voiceMessageMediaManager: VoiceMessageMediaManagerMock(),
                                  userIndicatorController: ServiceLocator.shared.userIndicatorController,
                                  appMediator: AppMediatorMock.default,
-                                 appSettings: ServiceLocator.shared.settings,
+                                 appSettings: appSettings,
                                  analyticsService: ServiceLocator.shared.analytics,
                                  emojiProvider: EmojiProvider(appSettings: ServiceLocator.shared.settings),
-                                 timelineControllerFactory: TimelineControllerFactoryMock(.init()),
-                                 clientProxy: ClientProxyMock(.init()))
+                                 linkMetadataProvider: LinkMetadataProvider(),
+                                 timelineControllerFactory: TimelineControllerFactoryMock(.init()))
     }()
 
     static var previews: some View {
@@ -422,7 +446,8 @@ struct TimelineItemBubbledStylerView_Previews: PreviewProvider, TestablePreview 
         ScrollView {
             let threadSummary = TimelineItemThreadSummary.loaded(senderID: "@alice:matrix.org",
                                                                  sender: .init(id: "@alice:matrix.org", displayName: "Alice"),
-                                                                 latestEventContent: .message(.text(.init(body: "This is a threaded message"))))
+                                                                 latestEventContent: .message(.text(.init(body: "This is a very long, multi-lined, threaded message"))),
+                                                                 numberOfReplies: 42)
             
             MockTimelineContent(threadSummary: threadSummary)
         }

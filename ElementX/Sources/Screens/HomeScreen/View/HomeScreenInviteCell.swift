@@ -1,7 +1,8 @@
 //
-// Copyright 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2024-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -53,6 +54,7 @@ struct HomeScreenInviteCell: View {
                 context.send(viewAction: .selectRoom(roomIdentifier: roomID))
             }
         }
+        .accessibilityIdentifier(A11yIdentifiers.homeScreen.roomName(room.name))
     }
     
     // MARK: - Private
@@ -155,23 +157,34 @@ struct HomeScreenInviteCell_Previews: PreviewProvider, TestablePreview {
     static var previews: some View {
         VStack(spacing: 0) {
             HomeScreenInviteCell(room: .dmInvite,
-                                 context: makeViewModel().context, hideInviteAvatars: false)
+                                 context: makeViewModel().context,
+                                 hideInviteAvatars: false)
             
-            HomeScreenInviteCell(room: .dmInvite,
-                                 context: makeViewModel().context, hideInviteAvatars: false)
+            HomeScreenInviteCell(room: .invite(),
+                                 context: makeViewModel().context,
+                                 hideInviteAvatars: false)
             
-            HomeScreenInviteCell(room: .roomInvite(),
-                                 context: makeViewModel().context, hideInviteAvatars: false)
+            HomeScreenInviteCell(room: .invite(alias: "#footest:somewhere.org",
+                                               avatarURL: .mockMXCAvatar),
+                                 context: makeViewModel().context,
+                                 hideInviteAvatars: false)
             
-            HomeScreenInviteCell(room: .roomInvite(),
-                                 context: makeViewModel().context, hideInviteAvatars: false)
+            // Not the final design, may get its own cell type entirely.
+            HomeScreenInviteCell(room: .invite(name: "Awesome Space",
+                                               isSpace: true,
+                                               alias: "#footest:somewhere.org",
+                                               avatarURL: .mockMXCAvatar),
+                                 context: makeViewModel().context,
+                                 hideInviteAvatars: false)
             
-            HomeScreenInviteCell(room: .roomInvite(alias: "#footest:somewhere.org", avatarURL: .mockMXCAvatar),
-                                 context: makeViewModel().context, hideInviteAvatars: false)
-            HomeScreenInviteCell(room: .roomInvite(alias: "#footest-hidden-avatars:somewhere.org", avatarURL: .mockMXCAvatar),
-                                 context: makeViewModel().context, hideInviteAvatars: true)
-            HomeScreenInviteCell(room: .roomInvite(alias: "#footest:somewhere.org"),
-                                 context: makeViewModel().context, hideInviteAvatars: false)
+            HomeScreenInviteCell(room: .invite(name: "Hidden Avatars",
+                                               avatarURL: .mockMXCAvatar),
+                                 context: makeViewModel().context,
+                                 hideInviteAvatars: true)
+            
+            HomeScreenInviteCell(room: .invite(alias: "#footest:somewhere.org"),
+                                 context: makeViewModel().context,
+                                 hideInviteAvatars: false)
                 .dynamicTypeSize(.accessibility1)
                 .previewDisplayName("Aliased room (AX1)")
         }
@@ -204,11 +217,13 @@ private extension HomeScreenRoom {
                                   joinRequestType: .invite(inviter: inviter),
                                   name: "Some Guy",
                                   isDirect: true,
+                                  isSpace: false,
                                   avatarURL: nil,
                                   heroes: [.init(userID: "@someone:somewhere.com")],
                                   activeMembersCount: 0,
                                   lastMessage: nil,
                                   lastMessageDate: nil,
+                                  lastMessageState: nil,
                                   unreadMessagesCount: 0,
                                   unreadMentionsCount: 0,
                                   unreadNotificationsCount: 0,
@@ -217,12 +232,16 @@ private extension HomeScreenRoom {
                                   alternativeAliases: [],
                                   hasOngoingCall: false,
                                   isMarkedUnread: false,
-                                  isFavourite: false)
+                                  isFavourite: false,
+                                  isTombstoned: false)
         
         return .init(summary: summary, hideUnreadMessagesBadge: false)
     }
     
-    static func roomInvite(alias: String? = nil, avatarURL: URL? = nil) -> HomeScreenRoom {
+    static func invite(name: String = "Awesome Room",
+                       isSpace: Bool = false,
+                       alias: String? = nil,
+                       avatarURL: URL? = nil) -> HomeScreenRoom {
         let inviter = RoomMemberProxyMock()
         inviter.displayName = "Luca"
         inviter.userID = "@jack:somewhi.nl"
@@ -231,13 +250,15 @@ private extension HomeScreenRoom {
         let summary = RoomSummary(room: RoomSDKMock(),
                                   id: "@someone:somewhere.com",
                                   joinRequestType: .invite(inviter: inviter),
-                                  name: "Awesome Room",
+                                  name: name,
                                   isDirect: false,
+                                  isSpace: isSpace,
                                   avatarURL: avatarURL,
                                   heroes: [.init(userID: "@someone:somewhere.com")],
                                   activeMembersCount: 0,
                                   lastMessage: nil,
                                   lastMessageDate: nil,
+                                  lastMessageState: nil,
                                   unreadMessagesCount: 0,
                                   unreadMentionsCount: 0,
                                   unreadNotificationsCount: 0,
@@ -246,7 +267,8 @@ private extension HomeScreenRoom {
                                   alternativeAliases: [],
                                   hasOngoingCall: false,
                                   isMarkedUnread: false,
-                                  isFavourite: false)
+                                  isFavourite: false,
+                                  isTombstoned: false)
         
         return .init(summary: summary, hideUnreadMessagesBadge: false)
     }

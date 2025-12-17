@@ -1,7 +1,8 @@
 //
-// Copyright 2023, 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2023-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -10,9 +11,22 @@ import SwiftUI
 struct RoomChangeRolesScreenSelectedItem: View {
     let member: RoomMemberDetails
     let mediaProvider: MediaProviderProtocol?
-    let dismissAction: () -> Void
+    let dismissAction: (() -> Void)?
     
     var body: some View {
+        mainContent
+            .accessibilityActions {
+                if let dismissAction {
+                    Button(L10n.actionDismiss) {
+                        dismissAction()
+                    }
+                }
+            }
+    }
+    
+    // MARK: - Private
+    
+    private var mainContent: some View {
         VStack(spacing: 4) {
             avatar
             
@@ -21,9 +35,8 @@ struct RoomChangeRolesScreenSelectedItem: View {
                 .foregroundColor(.compound.textPrimary)
                 .lineLimit(1)
         }
+        .accessibilityElement(children: .combine)
     }
-    
-    // MARK: - Private
     
     var avatar: some View {
         LoadableAvatarImage(url: member.avatarURL,
@@ -31,8 +44,9 @@ struct RoomChangeRolesScreenSelectedItem: View {
                             contentID: member.id,
                             avatarSize: .user(on: .inviteUsers),
                             mediaProvider: mediaProvider)
+            .accessibilityHidden(true)
             .overlay(alignment: .topTrailing) {
-                if member.role != .administrator {
+                if let dismissAction {
                     Button(action: dismissAction) {
                         Image(systemName: "xmark.circle.fill")
                             .resizable()
@@ -40,6 +54,8 @@ struct RoomChangeRolesScreenSelectedItem: View {
                             .symbolRenderingMode(.palette)
                             .foregroundStyle(Color.compound.iconOnSolidPrimary, Color.compound.iconPrimary)
                     }
+                    // We will use the accessibility action
+                    .accessibilityHidden(true)
                     .offset(x: 4)
                 }
             }

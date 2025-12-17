@@ -1,7 +1,8 @@
 //
-// Copyright 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2024-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -18,6 +19,7 @@ enum EncryptionResetFlowCoordinatorAction: Equatable {
 
 struct EncryptionResetFlowCoordinatorParameters {
     let userSession: UserSessionProtocol
+    let appSettings: AppSettings
     let userIndicatorController: UserIndicatorControllerProtocol
     let navigationStackCoordinator: NavigationStackCoordinator
     let windowManger: WindowManagerProtocol
@@ -25,6 +27,7 @@ struct EncryptionResetFlowCoordinatorParameters {
 
 class EncryptionResetFlowCoordinator: FlowCoordinatorProtocol {
     private let userSession: UserSessionProtocol
+    private let appSettings: AppSettings
     private let userIndicatorController: UserIndicatorControllerProtocol
     
     private let navigationStackCoordinator: NavigationStackCoordinator
@@ -59,6 +62,7 @@ class EncryptionResetFlowCoordinator: FlowCoordinatorProtocol {
     
     init(parameters: EncryptionResetFlowCoordinatorParameters) {
         userSession = parameters.userSession
+        appSettings = parameters.appSettings
         userIndicatorController = parameters.userIndicatorController
         navigationStackCoordinator = parameters.navigationStackCoordinator
         windowManager = parameters.windowManger
@@ -67,7 +71,7 @@ class EncryptionResetFlowCoordinator: FlowCoordinatorProtocol {
         configureStateMachine()
     }
     
-    func start() {
+    func start(animated: Bool) {
         stateMachine.tryEvent(.start)
     }
     
@@ -152,7 +156,9 @@ class EncryptionResetFlowCoordinator: FlowCoordinatorProtocol {
     private func presentOIDCAuthorization(for url: URL) {
         // Note to anyone in the future if you come back here to make this open in Safari instead of a WAS.
         // As of iOS 16, there is an issue on the simulator with accessing the cookie but it works on a device. 🤷‍♂️
-        accountSettingsPresenter = OIDCAccountSettingsPresenter(accountURL: url, presentationAnchor: windowManager.mainWindow)
+        accountSettingsPresenter = OIDCAccountSettingsPresenter(accountURL: url,
+                                                                presentationAnchor: windowManager.mainWindow,
+                                                                appSettings: appSettings)
         accountSettingsPresenter?.start()
     }
 }

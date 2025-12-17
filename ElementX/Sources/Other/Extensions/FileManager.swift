@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -49,10 +50,10 @@ extension FileManager {
     /// Retrieve a file's disk size
     /// - Parameter url: the file URL
     /// - Returns: the size in bytes
-    func sizeForItem(at url: URL) throws -> Double {
-        let attributes = try attributesOfItem(atPath: url.path())
+    func sizeForItem(at url: URL) throws -> UInt {
+        let attributes = try attributesOfItem(atPath: url.path(percentEncoded: false))
         
-        guard let size = attributes[FileAttributeKey.size] as? Double else {
+        guard let size = attributes[FileAttributeKey.size] as? UInt else {
             throw FileManagerError.invalidFileSize
         }
         

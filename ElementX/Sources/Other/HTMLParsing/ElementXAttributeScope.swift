@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -62,6 +63,11 @@ enum AllUsersMentionAttribute: AttributedStringKey {
     static let name = "MXAllUsersMentionAttribute"
 }
 
+enum CodeBlockAttribute: AttributedStringKey {
+    typealias Value = Bool
+    static let name = "MXCodeBlockAttribute"
+}
+
 // periphery: ignore - required to make NSAttributedString to AttributedString conversion even if not used directly
 extension AttributeScopes {
     struct ElementXAttributes: AttributeScope {
@@ -76,6 +82,8 @@ extension AttributeScopes {
         let eventOnRoomAlias: EventOnRoomAliasAttribute
         
         let allUsersMention: AllUsersMentionAttribute
+        
+        let codeBlock: CodeBlockAttribute
         
         let swiftUI: SwiftUIAttributes
         let uiKit: UIKitAttributes

@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -14,7 +15,7 @@ import XCTest
 class MessageForwardingScreenViewModelTests: XCTestCase {
     let forwardingItem = MessageForwardingItem(id: .event(uniqueID: .init("t1"), eventOrTransactionID: .eventID("t1")),
                                                roomID: "1",
-                                               content: .init(noPointer: .init()))
+                                               content: .init(noHandle: .init()))
     var viewModel: MessageForwardingScreenViewModelProtocol!
     var context: MessageForwardingScreenViewModelType.Context!
     var cancellables = Set<AnyCancellable>()
@@ -26,10 +27,9 @@ class MessageForwardingScreenViewModelTests: XCTestCase {
         clientProxy.roomForIdentifierClosure = { .joined(JoinedRoomProxyMock(.init(id: $0))) }
         
         viewModel = MessageForwardingScreenViewModel(forwardingItem: forwardingItem,
-                                                     clientProxy: clientProxy,
+                                                     userSession: UserSessionMock(.init(clientProxy: clientProxy)),
                                                      roomSummaryProvider: RoomSummaryProviderMock(.init(state: .loaded(.mockRooms))),
-                                                     userIndicatorController: UserIndicatorControllerMock(),
-                                                     mediaProvider: MediaProviderMock(configuration: .init()))
+                                                     userIndicatorController: UserIndicatorControllerMock())
         context = viewModel.context
     }
     

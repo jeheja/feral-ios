@@ -1,7 +1,8 @@
 //
-// Copyright 2023, 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2023-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -19,10 +20,10 @@ class OIDCAccountSettingsPresenter: NSObject {
     private let presentationAnchor: UIWindow
     private let oidcRedirectURL: URL
     
-    init(accountURL: URL, presentationAnchor: UIWindow) {
+    init(accountURL: URL, presentationAnchor: UIWindow, appSettings: AppSettings) {
         self.accountURL = accountURL
         self.presentationAnchor = presentationAnchor
-        oidcRedirectURL = ServiceLocator.shared.settings.oidcRedirectURL
+        oidcRedirectURL = appSettings.oidcRedirectURL
         super.init()
     }
     

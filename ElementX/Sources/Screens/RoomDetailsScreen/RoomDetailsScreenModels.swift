@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -27,6 +28,7 @@ enum RoomDetailsScreenViewModelAction: Equatable {
     case displayKnockingRequests
     case displaySecurityAndPrivacy
     case displayReportRoom
+    case transferOwnership
 }
 
 // MARK: View
@@ -55,6 +57,7 @@ struct RoomDetailsScreenViewState: BindableState {
     var canEditRoomTopic = false
     var canEditRoomAvatar = false
     var canEditRolesOrPermissions = false
+    var canEditSecurityAndPrivacy = false
     var canKickUsers = false
     var canBanUsers = false
     var notificationSettingsState: RoomDetailsNotificationSettingsState = .loading
@@ -72,10 +75,10 @@ struct RoomDetailsScreenViewState: BindableState {
     }
     
     var canSeeSecurityAndPrivacy: Bool {
-        knockingEnabled && dmRecipientInfo == nil && canEditRolesOrPermissions
+        dmRecipientInfo == nil && canEditSecurityAndPrivacy
     }
     
-    var canEdit: Bool {
+    var canEditBaseInfo: Bool {
         !isDirect && (canEditRoomName || canEditRoomTopic || canEditRoomAvatar)
     }
     
@@ -170,6 +173,9 @@ struct RoomDetailsScreenViewStateBindings {
     
     /// A media item that will be previewed with QuickLook.
     var mediaPreviewItem: MediaPreviewItem?
+    
+    /// The view model used to display the leave space sheet, will only be used if the room is a space.
+    var leaveSpaceViewModel: LeaveSpaceViewModel?
 }
 
 struct LeaveRoomAlertItem: AlertProtocol {
@@ -288,6 +294,8 @@ enum RoomDetailsScreenErrorType: Hashable {
     case alert
     /// Leaving room has failed..
     case unknown
+    /// Last owner
+    case lastOwner
 }
 
 enum RoomDetailsScreenPinnedEventsActionState {

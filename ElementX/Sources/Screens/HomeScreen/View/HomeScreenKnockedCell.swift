@@ -1,7 +1,8 @@
 //
-// Copyright 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2024-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -149,11 +150,13 @@ private extension HomeScreenRoom {
                                   joinRequestType: .invite(inviter: inviter),
                                   name: "Some Guy",
                                   isDirect: true,
+                                  isSpace: false,
                                   avatarURL: nil,
                                   heroes: [.init(userID: "@someone:somewhere.com")],
                                   activeMembersCount: 0,
                                   lastMessage: nil,
                                   lastMessageDate: nil,
+                                  lastMessageState: nil,
                                   unreadMessagesCount: 0,
                                   unreadMentionsCount: 0,
                                   unreadNotificationsCount: 0,
@@ -162,7 +165,8 @@ private extension HomeScreenRoom {
                                   alternativeAliases: [],
                                   hasOngoingCall: false,
                                   isMarkedUnread: false,
-                                  isFavourite: false)
+                                  isFavourite: false,
+                                  isTombstoned: false)
         
         return .init(summary: summary, hideUnreadMessagesBadge: false)
     }
@@ -178,11 +182,13 @@ private extension HomeScreenRoom {
                                   joinRequestType: .invite(inviter: inviter),
                                   name: "Awesome Room",
                                   isDirect: false,
+                                  isSpace: false,
                                   avatarURL: avatarURL,
                                   heroes: [.init(userID: "@someone:somewhere.com")],
                                   activeMembersCount: 0,
                                   lastMessage: nil,
                                   lastMessageDate: nil,
+                                  lastMessageState: nil,
                                   unreadMessagesCount: 0,
                                   unreadMentionsCount: 0,
                                   unreadNotificationsCount: 0,
@@ -191,7 +197,8 @@ private extension HomeScreenRoom {
                                   alternativeAliases: [],
                                   hasOngoingCall: false,
                                   isMarkedUnread: false,
-                                  isFavourite: false)
+                                  isFavourite: false,
+                                  isTombstoned: false)
         
         return .init(summary: summary, hideUnreadMessagesBadge: false)
     }

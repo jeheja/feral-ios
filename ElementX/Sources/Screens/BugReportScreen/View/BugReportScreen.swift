@@ -1,5 +1,6 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
 // SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 // Please see LICENSE files in the repository root for full details.
@@ -14,6 +15,7 @@ struct BugReportScreen: View {
     
     @Bindable var context: BugReportScreenViewModel.Context
     
+    var canSendLogFiles: Bool { context.viewState.canSendLogFiles }
     var photosPickerTitle: String { context.viewState.screenshot == nil ? L10n.screenBugReportAttachScreenshot : L10n.screenBugReportEditScreenshot }
     
     var body: some View {
@@ -56,15 +58,23 @@ struct BugReportScreen: View {
     
     private var sendLogsSection: some View {
         Section {
-            ListRow(label: .plain(title: L10n.screenBugReportIncludeLogs),
-                    kind: .toggle($context.sendingLogsEnabled))
-                .accessibilityIdentifier(A11yIdentifiers.bugReportScreen.sendLogs)
+            if canSendLogFiles {
+                ListRow(label: .plain(title: L10n.screenBugReportIncludeLogs),
+                        kind: .toggle($context.sendingLogsEnabled))
+                    .accessibilityIdentifier(A11yIdentifiers.bugReportScreen.sendLogs)
+            }
             ListRow(label: .plain(title: L10n.screenBugReportViewLogs),
                     kind: .navigationLink { context.send(viewAction: .viewLogs) })
                 .accessibilityIdentifier(A11yIdentifiers.bugReportScreen.sendLogs)
         } footer: {
-            Text(L10n.screenBugReportLogsDescription)
-                .compoundListSectionFooter()
+            if canSendLogFiles {
+                Text(L10n.screenBugReportLogsDescription)
+                    .compoundListSectionFooter()
+            } else {
+                Label(L10n.screenBugReportIncludeLogsError, icon: \.errorSolid, iconSize: .xSmall, relativeTo: .compound.bodySM)
+                    .foregroundStyle(.compound.textCriticalPrimary)
+                    .compoundListSectionFooter()
+            }
         }
     }
 
@@ -98,6 +108,7 @@ struct BugReportScreen: View {
                     .frame(width: 100)
                     .cornerRadius(4)
                     .accessibilityIdentifier(A11yIdentifiers.bugReportScreen.screenshot)
+                    .accessibilityLabel(L10n.screenBugReportA11yScreenshot)
                     .overlay(alignment: .topTrailing) {
                         Button { context.send(viewAction: .removeScreenshot) } label: {
                             CompoundIcon(\.close, size: .small, relativeTo: .compound.bodyMD)

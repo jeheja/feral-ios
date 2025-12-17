@@ -1,21 +1,33 @@
 //
-// Copyright 2023, 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2023-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
 import MatrixRustSDK
 import SwiftUI
 
-final class MessageTextView: UITextView, PillAttachmentViewProviderDelegate {
+final class MessageTextView: UITextView, PillAttachmentViewProviderDelegate, UIGestureRecognizerDelegate {
     var timelineContext: TimelineViewModel.Context?
     var updateClosure: (() -> Void)?
     private var pillViews = NSHashTable<UIView>.weakObjects()
+        
+    override func addGestureRecognizer(_ gestureRecognizer: UIGestureRecognizer) {
+        // We don't need to change the behaviour on MacOS
+        if !ProcessInfo.processInfo.isiOSAppOnMac {
+            gestureRecognizer.delegate = self
+        }
+        super.addGestureRecognizer(gestureRecognizer)
+    }
     
     // This prevents the magnifying glass from showing up
-    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-        gestureRecognizer as? UILongPressGestureRecognizer == nil
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        if otherGestureRecognizer is UILongPressGestureRecognizer {
+            return false
+        }
+        return true
     }
     
     func invalidateTextAttachmentsDisplay() {
@@ -63,7 +75,7 @@ struct MessageText: UIViewRepresentable {
             do {
                 attributedString = try AttributedString(textView.attributedText, including: \.elementX)
             } catch {
-                MXLog.error("[MessageText] Failed to update attributedString: \(error)]")
+                MXLog.error("Failed to update attributedString: \(error)]")
                 return
             }
         }
@@ -72,6 +84,7 @@ struct MessageText: UIViewRepresentable {
         textView.adjustsFontForContentSizeCategory = true
 
         // Required to allow tapping links
+        // We disable selection at delegate level
         textView.isSelectable = true
         textView.isUserInteractionEnabled = true
         
@@ -125,20 +138,26 @@ struct MessageText: UIViewRepresentable {
             self.openURLAction = openURLAction
         }
         
-        func textView(_ textView: UITextView, shouldInteractWith URL: URL, in characterRange: NSRange, interaction: UITextItemInteraction) -> Bool {
-            switch interaction {
-            case .invokeDefaultAction:
-                openURLAction.callAsFunction(URL)
-                return false
-            case .preview:
-                // We don't want to show a URL preview for permalinks
-                return parseMatrixEntityFrom(uri: URL.absoluteString) == nil
-            default:
-                return true
+        func textViewDidChangeSelection(_ textView: UITextView) {
+            guard !ProcessInfo.processInfo.isiOSAppOnMac else {
+                return
             }
+            textView.selectedTextRange = nil
         }
-                
-        @available(iOS 17.0, *)
+        
+        func textView(_ textView: UITextView, primaryActionFor textItem: UITextItem, defaultAction: UIAction) -> UIAction? {
+            if case .link(let url) = textItem.content {
+                return .init(title: defaultAction.title,
+                             image: defaultAction.image,
+                             discoverabilityTitle: defaultAction.discoverabilityTitle,
+                             attributes: defaultAction.attributes,
+                             state: defaultAction.state) { [weak self] _ in
+                    self?.openURLAction.callAsFunction(url)
+                }
+            }
+            return defaultAction
+        }
+                        
         func textView(_ textView: UITextView, menuConfigurationFor textItem: UITextItem, defaultMenu: UIMenu) -> UITextItem.MenuConfiguration? {
             switch textItem.content {
             case let .link(url):

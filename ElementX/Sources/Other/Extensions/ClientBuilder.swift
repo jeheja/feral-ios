@@ -1,7 +1,8 @@
 //
-// Copyright 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2024-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -16,13 +17,16 @@ extension ClientBuilder {
                             sessionDelegate: ClientSessionDelegate,
                             appHooks: AppHooks,
                             enableOnlySignedDeviceIsolationMode: Bool,
+                            enableKeyShareOnInvite: Bool,
                             requestTimeout: UInt64? = 30000,
-                            maxRequestRetryTime: UInt64? = nil) -> ClientBuilder {
+                            maxRequestRetryTime: UInt64? = nil,
+                            threadsEnabled: Bool) -> ClientBuilder {
         var builder = ClientBuilder()
             .crossProcessStoreLocksHolderName(holderName: InfoPlistReader.main.bundleIdentifier)
             .enableOidcRefreshLock()
             .setSessionDelegate(sessionDelegate: sessionDelegate)
             .userAgent(userAgent: UserAgentBuilder.makeASCIIUserAgent())
+            .threadsEnabled(enabled: threadsEnabled, threadSubscriptions: threadsEnabled)
             .requestConfig(config: .init(retryLimit: 0,
                                          timeout: requestTimeout,
                                          maxConcurrentRequests: nil,
@@ -37,17 +41,21 @@ extension ClientBuilder {
             builder = builder
                 .autoEnableCrossSigning(autoEnableCrossSigning: true)
                 .backupDownloadStrategy(backupDownloadStrategy: .afterDecryptionFailure)
+                .enableShareHistoryOnInvite(enableShareHistoryOnInvite: enableKeyShareOnInvite)
                 .autoEnableBackups(autoEnableBackups: true)
-                
-            if enableOnlySignedDeviceIsolationMode {
-                builder = builder
-                    .roomKeyRecipientStrategy(strategy: .identityBasedStrategy)
-                    .roomDecryptionTrustRequirement(trustRequirement: .crossSignedOrLegacy)
-            } else {
-                builder = builder
-                    .roomKeyRecipientStrategy(strategy: .errorOnVerifiedUserProblem)
-                    .roomDecryptionTrustRequirement(trustRequirement: .untrusted)
-            }
+        }
+
+        // Set recipient strategy and trust requirement even if `setupEncryption` is false to ensure messages
+        // from insecure devices aren't displayed in push notifications.
+        // See https://github.com/element-hq/element-x-ios/issues/4702.
+        if enableOnlySignedDeviceIsolationMode {
+            builder = builder
+                .roomKeyRecipientStrategy(strategy: .identityBasedStrategy)
+                .decryptionSettings(decryptionSettings: .init(senderDeviceTrustRequirement: .crossSignedOrLegacy))
+        } else {
+            builder = builder
+                .roomKeyRecipientStrategy(strategy: .errorOnVerifiedUserProblem)
+                .decryptionSettings(decryptionSettings: .init(senderDeviceTrustRequirement: .untrusted))
         }
         
         if let httpProxy {

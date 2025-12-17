@@ -1,7 +1,8 @@
 //
-// Copyright 2023, 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2023-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -134,21 +135,33 @@ struct AvatarHeaderView<Footer: View>: View {
                 case .encrypted(true):
                     BadgeLabel(title: L10n.screenRoomDetailsBadgeEncrypted,
                                icon: \.lockSolid,
-                               isHighlighted: true)
+                               style: .accent)
                 case .encrypted(false):
                     BadgeLabel(title: L10n.screenRoomDetailsBadgeNotEncrypted,
                                icon: \.lockOff,
-                               isHighlighted: false)
+                               style: .info)
                 case .public:
                     BadgeLabel(title: L10n.screenRoomDetailsBadgePublic,
                                icon: \.public,
-                               isHighlighted: false)
+                               style: .info)
                 case .verified:
                     BadgeLabel(title: L10n.commonVerified,
                                icon: \.verified,
-                               isHighlighted: true)
+                               style: .accent)
                 }
             }
+        }
+    }
+    
+    private var avatarAccessibilityLabel: String {
+        guard onAvatarTap != nil else {
+            return L10n.a11yAvatar
+        }
+        switch avatarInfo {
+        case .room(let roomAvatar):
+            return roomAvatar.hasURL ? L10n.a11yViewAvatar : L10n.a11yAvatar
+        case .user(let userProfileProxy):
+            return userProfileProxy.avatarURL != nil ? L10n.a11yViewAvatar : L10n.a11yAvatar
         }
     }
     
@@ -160,7 +173,7 @@ struct AvatarHeaderView<Footer: View>: View {
                             avatarSize: avatarSize,
                             mediaProvider: mediaProvider,
                             onAvatarTap: onAvatarTap)
-                .accessibilityLabel(L10n.a11yAvatar)
+                .accessibilityLabel(avatarAccessibilityLabel)
             
         case .user(let userProfile):
             LoadableAvatarImage(url: userProfile.avatarURL,
@@ -169,7 +182,7 @@ struct AvatarHeaderView<Footer: View>: View {
                                 avatarSize: avatarSize,
                                 mediaProvider: mediaProvider,
                                 onTap: onAvatarTap)
-                .accessibilityLabel(L10n.a11yAvatar)
+                .accessibilityLabel(avatarAccessibilityLabel)
         }
     }
     

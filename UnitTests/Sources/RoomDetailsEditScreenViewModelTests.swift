@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -70,7 +71,7 @@ class RoomDetailsEditScreenViewModelTests: XCTestCase {
         XCTAssertFalse(context.viewState.canSave)
     }
     
-    func testSaveShowsSheet() {
+    func testAvatarPickerShowsSheet() {
         setupViewModel(roomProxyConfiguration: .init(name: "Some room", members: [.mockMeAdmin]))
         context.name = "name"
         XCTAssertFalse(context.showMediaSheet)
@@ -92,6 +93,47 @@ class RoomDetailsEditScreenViewModelTests: XCTestCase {
         XCTAssertEqual(action, .saveFinished)
     }
     
+    func testCancelWithoutChanges() async throws {
+        setupViewModel(roomProxyConfiguration: .init(name: "Some room", members: [.mockMeAdmin]))
+        XCTAssertFalse(context.viewState.canSave)
+        XCTAssertNil(context.alertInfo)
+        
+        var deferred = deferFulfillment(viewModel.actions) { $0 == .cancel }
+        context.send(viewAction: .cancel)
+        try await deferred.fulfill()
+        XCTAssertNil(context.alertInfo)
+    }
+    
+    func testCancelWithChangesAndDiscard() async throws {
+        setupViewModel(roomProxyConfiguration: .init(name: "Some room", members: [.mockMeAdmin]))
+        context.name = "name"
+        XCTAssertTrue(context.viewState.canSave)
+        XCTAssertNil(context.alertInfo)
+        
+        context.send(viewAction: .cancel)
+        
+        XCTAssertNotNil(context.alertInfo)
+        
+        let deferred = deferFulfillment(viewModel.actions) { $0 == .cancel }
+        context.alertInfo?.secondaryButton?.action?() // Discard
+        try await deferred.fulfill()
+    }
+    
+    func testCancelWithChangesAndSave() async throws {
+        setupViewModel(roomProxyConfiguration: .init(name: "Some room", members: [.mockMeAdmin]))
+        context.name = "name"
+        XCTAssertTrue(context.viewState.canSave)
+        XCTAssertNil(context.alertInfo)
+        
+        context.send(viewAction: .cancel)
+        
+        XCTAssertNotNil(context.alertInfo)
+        
+        let deferred = deferFulfillment(viewModel.actions) { $0 == .saveFinished }
+        context.alertInfo?.primaryButton.action?() // Save
+        try await deferred.fulfill()
+    }
+    
     func testErrorShownOnFailedFetchOfMedia() async throws {
         setupViewModel(roomProxyConfiguration: .init(name: "Some room", members: [.mockMeAdmin]))
         viewModel.didSelectMediaUrl(url: .picturesDirectory)
@@ -111,7 +153,7 @@ class RoomDetailsEditScreenViewModelTests: XCTestCase {
     private func setupViewModel(roomProxyConfiguration: JoinedRoomProxyMockConfiguration) {
         userIndicatorController = UserIndicatorControllerMock.default
         viewModel = .init(roomProxy: JoinedRoomProxyMock(roomProxyConfiguration),
-                          mediaProvider: MediaProviderMock(configuration: .init()),
+                          userSession: UserSessionMock(.init()),
                           mediaUploadingPreprocessor: MediaUploadingPreprocessor(appSettings: ServiceLocator.shared.settings),
                           userIndicatorController: userIndicatorController)
     }

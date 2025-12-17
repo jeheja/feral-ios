@@ -1,10 +1,12 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
+import Combine
 import XCTest
 
 @testable import ElementX
@@ -212,7 +214,7 @@ class RoomMembersListScreenViewModelTests: XCTestCase {
         
         // When tapping on another administrator in the list.
         deferred = deferFulfillment(context.$viewState) { $0.bindings.manageMemeberViewModel != nil }
-        guard let admin = viewModel.state.visibleJoinedMembers.first(where: { $0.member.role == .administrator && $0.member.id != RoomMemberProxyMock.mockMe.userID })?.member else {
+        guard let admin = viewModel.state.visibleJoinedMembers.first(where: { $0.member.role.isAdminOrHigher && $0.member.id != RoomMemberProxyMock.mockMe.userID })?.member else {
             XCTFail("Expected to find another admin.")
             return
         }
@@ -272,11 +274,29 @@ class RoomMembersListScreenViewModelTests: XCTestCase {
         XCTAssertEqual(context.manageMemeberViewModel?.state.isMemberBanned, true)
     }
     
+    func testSwitchesToMembersModeWhenThereAreNoBannedMembers() async throws {
+        // Given the room list viewed as an admin.
+        roomProxy = JoinedRoomProxyMock(.init(name: "test"))
+        let subject = CurrentValueSubject<[RoomMemberProxyProtocol], Never>([RoomMemberProxyMock].allMembersAsAdmin + RoomMemberProxyMock.mockBanned)
+        roomProxy.membersPublisher = subject.asCurrentValuePublisher()
+        viewModel = .init(userSession: UserSessionMock(.init()),
+                          roomProxy: roomProxy,
+                          userIndicatorController: ServiceLocator.shared.userIndicatorController,
+                          analytics: ServiceLocator.shared.analytics)
+        
+        var deferred = deferFulfillment(context.$viewState) { $0.visibleBannedMembers.count == 4 && $0.bindings.mode == .banned }
+        context.mode = .banned
+        try await deferred.fulfill()
+        
+        deferred = deferFulfillment(context.$viewState) { $0.visibleBannedMembers.count == 0 && $0.bindings.mode == .members }
+        subject.value = [RoomMemberProxyMock].allMembersAsAdmin
+        try await deferred.fulfill()
+    }
+    
     private func setup(with members: [RoomMemberProxyMock]) {
         roomProxy = JoinedRoomProxyMock(.init(name: "test", members: members))
-        viewModel = .init(clientProxy: ClientProxyMock(.init()),
+        viewModel = .init(userSession: UserSessionMock(.init()),
                           roomProxy: roomProxy,
-                          mediaProvider: MediaProviderMock(configuration: .init()),
                           userIndicatorController: ServiceLocator.shared.userIndicatorController,
                           analytics: ServiceLocator.shared.analytics)
     }

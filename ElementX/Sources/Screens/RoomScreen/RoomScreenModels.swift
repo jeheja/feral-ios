@@ -1,5 +1,6 @@
 //
-// Copyright 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2024-2025 New Vector Ltd.
 //
 // SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 // Please see LICENSE files in the repository root for full details.
@@ -10,11 +11,14 @@ import OrderedCollections
 
 enum RoomScreenViewModelAction: Equatable {
     case focusEvent(eventID: String)
+    case displayThread(threadRootEventID: String, focussedEventID: String)
     case displayPinnedEventsTimeline
     case displayRoomDetails
     case displayCall
     case removeComposerFocus
     case displayKnockRequests
+    case displayRoom(roomID: String, via: [String])
+    case displayMessageForwarding(MessageForwardingItem)
 }
 
 enum RoomScreenViewAction {
@@ -26,6 +30,7 @@ enum RoomScreenViewAction {
     case acceptKnock(eventID: String)
     case dismissKnockRequests
     case viewKnockRequests
+    case displaySuccessorRoom
 }
 
 struct RoomScreenViewState: BindableState {
@@ -41,9 +46,18 @@ struct RoomScreenViewState: BindableState {
     }
     
     var canSendMessage = true
+    
+    /// Whether or not starting a call is supported.
+    var isCallingEnabled = true
+    /// Whether or not the user is allowed to join calls in this room.
     var canJoinCall = false
+    /// Whether or not this room currently has a call in progress.
     var hasOngoingCall: Bool
-    var shouldShowCallButton = true
+    /// Whether or not the user is already part of a call in another room.
+    var isParticipatingInOngoingCall = false
+    var shouldShowCallButton: Bool {
+        isCallingEnabled && !isParticipatingInOngoingCall // Hide the join call button when already in the call
+    }
     
     var isKnockingEnabled = false
     var isKnockableRoom = false
@@ -52,6 +66,8 @@ struct RoomScreenViewState: BindableState {
     var canBan = false
     var unseenKnockRequests: [KnockRequestInfo] = []
     var handledEventIDs: Set<String> = []
+    
+    var hasSuccessor: Bool
     
     var displayedKnockRequests: [KnockRequestInfo] {
         unseenKnockRequests.filter { !handledEventIDs.contains($0.eventID) }
@@ -66,7 +82,7 @@ struct RoomScreenViewState: BindableState {
     
     var footerDetails: RoomScreenFooterViewDetails?
     
-    var bindings: RoomScreenViewStateBindings
+    var bindings = RoomScreenViewStateBindings()
 }
 
 struct RoomScreenViewStateBindings {

@@ -1,7 +1,8 @@
 //
-// Copyright 2023, 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2023-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -60,7 +61,11 @@ final class CompletionSuggestionServiceTests: XCTestCase {
     func testUserSuggestionsIncludingAllUsers() async throws {
         let alice: RoomMemberProxyMock = .mockAlice
         let members: [RoomMemberProxyMock] = [alice, .mockBob, .mockCharlie, .mockMe]
-        let roomProxyMock = JoinedRoomProxyMock(.init(id: "roomID", name: "test", members: members, canUserTriggerRoomNotification: true))
+        let roomProxyMock = JoinedRoomProxyMock(.init(id: "roomID",
+                                                      name: "test",
+                                                      members: members,
+                                                      powerLevelsConfiguration: .init(canUserTriggerRoomNotification: true)))
+        
         let roomSummaryProvider = RoomSummaryProviderMock(.init(state: .loaded(.mockRooms)))
         let service = CompletionSuggestionService(roomProxy: roomProxyMock,
                                                   roomListPublisher: roomSummaryProvider.roomListPublisher.eraseToAnyPublisher())
@@ -88,7 +93,10 @@ final class CompletionSuggestionServiceTests: XCTestCase {
         let alice: RoomMemberProxyMock = .mockAlice
         let bob: RoomMemberProxyMock = .mockBob
         let members: [RoomMemberProxyMock] = [alice, bob, .mockMe]
-        let roomProxyMock = JoinedRoomProxyMock(.init(id: "roomID", name: "test", members: members, canUserTriggerRoomNotification: true))
+        let roomProxyMock = JoinedRoomProxyMock(.init(id: "roomID",
+                                                      name: "test",
+                                                      members: members,
+                                                      powerLevelsConfiguration: .init(canUserTriggerRoomNotification: true)))
         let roomSummaryProvider = RoomSummaryProviderMock(.init(state: .loaded(.mockRooms)))
         let service = CompletionSuggestionService(roomProxy: roomProxyMock,
                                                   roomListPublisher: roomSummaryProvider.roomListPublisher.eraseToAnyPublisher())

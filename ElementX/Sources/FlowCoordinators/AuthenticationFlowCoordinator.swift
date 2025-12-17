@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -23,7 +24,6 @@ class AuthenticationFlowCoordinator: FlowCoordinatorProtocol {
     private let appSettings: AppSettings
     private let analytics: AnalyticsService
     private let userIndicatorController: UserIndicatorControllerProtocol
-    private let qrCodeLoginService: QRCodeLoginServiceProtocol
     
     enum State: StateType {
         /// The state machine hasn't started.
@@ -102,7 +102,6 @@ class AuthenticationFlowCoordinator: FlowCoordinatorProtocol {
     weak var delegate: AuthenticationFlowCoordinatorDelegate?
     
     init(authenticationService: AuthenticationServiceProtocol,
-         qrCodeLoginService: QRCodeLoginServiceProtocol,
          bugReportService: BugReportServiceProtocol,
          navigationRootCoordinator: NavigationRootCoordinator,
          appMediator: AppMediatorProtocol,
@@ -116,7 +115,6 @@ class AuthenticationFlowCoordinator: FlowCoordinatorProtocol {
         self.appSettings = appSettings
         self.analytics = analytics
         self.userIndicatorController = userIndicatorController
-        self.qrCodeLoginService = qrCodeLoginService
         
         navigationStackCoordinator = NavigationStackCoordinator()
         
@@ -124,7 +122,7 @@ class AuthenticationFlowCoordinator: FlowCoordinatorProtocol {
         configureStateMachine()
     }
     
-    func start() {
+    func start(animated: Bool) {
         stateMachine.tryEvent(.start)
     }
     
@@ -300,7 +298,7 @@ class AuthenticationFlowCoordinator: FlowCoordinatorProtocol {
     // MARK: - QR Code
     
     private func showQRCodeLoginScreen() {
-        let coordinator = QRCodeLoginScreenCoordinator(parameters: .init(qrCodeLoginService: qrCodeLoginService,
+        let coordinator = QRCodeLoginScreenCoordinator(parameters: .init(qrCodeLoginService: authenticationService,
                                                                          canSignInManually: appSettings.allowOtherAccountProviders, // No need to worry about provisioning links as we hide QR login.
                                                                          orientationManager: appMediator.windowManager,
                                                                          appMediator: appMediator))
@@ -366,6 +364,7 @@ class AuthenticationFlowCoordinator: FlowCoordinatorProtocol {
         
         let parameters = ServerSelectionScreenCoordinatorParameters(authenticationService: authenticationService,
                                                                     authenticationFlow: authenticationFlow,
+                                                                    appSettings: appSettings,
                                                                     userIndicatorController: userIndicatorController)
         let coordinator = ServerSelectionScreenCoordinator(parameters: parameters)
         
@@ -411,6 +410,7 @@ class AuthenticationFlowCoordinator: FlowCoordinatorProtocol {
         let parameters = LoginScreenCoordinatorParameters(authenticationService: authenticationService,
                                                           loginHint: loginHint,
                                                           userIndicatorController: userIndicatorController,
+                                                          appSettings: appSettings,
                                                           analytics: analytics)
         let coordinator = LoginScreenCoordinator(parameters: parameters)
         

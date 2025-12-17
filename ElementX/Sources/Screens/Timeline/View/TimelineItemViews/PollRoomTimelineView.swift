@@ -1,7 +1,8 @@
 //
-// Copyright 2023, 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2023-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -22,7 +23,8 @@ struct PollRoomTimelineView: View {
     var body: some View {
         TimelineStyler(timelineItem: timelineItem) {
             PollView(poll: poll,
-                     state: state) { action in
+                     state: state,
+                     sender: timelineItem.sender) { action in
                 switch action {
                 case .selectOption(let optionID):
                     guard let eventID, let option = poll.options.first(where: { $0.id == optionID }), !option.isSelected else { return }

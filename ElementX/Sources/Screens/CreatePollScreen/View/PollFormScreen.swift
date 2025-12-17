@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -9,7 +10,7 @@ import Compound
 import SwiftUI
 
 struct PollFormScreen: View {
-    @ObservedObject var context: PollFormScreenViewModel.Context
+    @Bindable var context: PollFormScreenViewModel.Context
     @FocusState var focus: Focus?
     
     enum Focus: Hashable {
@@ -91,6 +92,9 @@ struct PollFormScreen: View {
                         })
                         .accessibilityIdentifier(A11yIdentifiers.pollFormScreen.addOption)
             }
+        } header: {
+            Text(L10n.screenCreatePollOptionsSectionTitle)
+                .compoundListSectionHeader()
         }
         // Disables animations when the text view resizes for multiline
         .animation(.noAnimation, value: UUID())
@@ -106,6 +110,9 @@ struct PollFormScreen: View {
             ListRow(label: .plain(title: L10n.screenCreatePollAnonymousDesc),
                     kind: .toggle($context.isUndisclosed))
                 .accessibilityIdentifier(A11yIdentifiers.pollFormScreen.pollKind)
+        } header: {
+            Text(L10n.screenCreatePollSettingsSectionTitle)
+                .compoundListSectionHeader()
         }
     }
     
@@ -168,13 +175,17 @@ private struct PollFormOptionRow: View {
                     }
                     .disabled(!canDeleteItem)
                     .buttonStyle(.compound(.textLink))
-                    .accessibilityLabel(L10n.actionRemove)
+                    .accessibilityLabel(L10n.screenCreatePollRemoveAccessibilityLabel(L10n.screenCreatePollOptionAccessibilityLabel(placeholder, text)))
                 }
                 
                 TextField(text: $text, axis: .vertical) {
                     Text(placeholder)
                         .compoundTextFieldPlaceholder()
                 }
+                // For some reason the placeholder is always read by voice over even if I disable or override the label, so if the text is empty we use an empy accessibility label
+                .accessibilityLabel(text.isEmpty ? "" : L10n.screenCreatePollOptionAccessibilityLabel(placeholder, text))
+                // Allows the move action voice over to give priority to this field over the remove button
+                .accessibilitySortPriority(1)
                 .tint(.compound.iconAccentTertiary)
                 .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
             }
@@ -187,8 +198,8 @@ private struct PollFormOptionRow: View {
 // MARK: - Previews
 
 struct PollFormScreen_Previews: PreviewProvider, TestablePreview {
-    static let viewModel = PollFormScreenViewModel(mode: .new)
-    static let editViewModel = PollFormScreenViewModel(mode: .edit(eventID: "1234", poll: poll))
+    static let viewModel = makeViewModel(mode: .new)
+    static let editViewModel = makeViewModel(mode: .edit(eventID: "1234", poll: poll))
     static let poll = Poll(question: "Cats or Dogs?",
                            kind: .disclosed,
                            maxSelections: 1,
@@ -211,6 +222,13 @@ struct PollFormScreen_Previews: PreviewProvider, TestablePreview {
             PollFormScreen(context: editViewModel.context)
         }
         .previewDisplayName("Edit")
+    }
+    
+    static func makeViewModel(mode: PollFormMode) -> PollFormScreenViewModel {
+        PollFormScreenViewModel(mode: mode,
+                                timelineController: MockTimelineController(),
+                                analytics: ServiceLocator.shared.analytics,
+                                userIndicatorController: UserIndicatorControllerMock())
     }
 }
 

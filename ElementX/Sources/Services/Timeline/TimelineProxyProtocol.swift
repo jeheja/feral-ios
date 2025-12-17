@@ -1,7 +1,8 @@
 //
-// Copyright 2023, 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2023-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -13,10 +14,23 @@ enum TimelineKind: Equatable {
     case live
     case detached
     case pinned
-    case thread
+    case thread(rootEventID: String)
     
     enum MediaPresentation { case roomScreenLive, roomScreenDetached, pinnedEventsScreen, mediaFilesScreen }
     case media(MediaPresentation)
+    
+    var isThread: Bool {
+        threadRootEventID != nil
+    }
+    
+    var threadRootEventID: String? {
+        switch self {
+        case .thread(let rootEventID):
+            rootEventID
+        default:
+            nil
+        }
+    }
 }
 
 enum TimelineFocus {
@@ -34,7 +48,6 @@ enum TimelineProxyError: Error {
     case sdkError(Error)
     
     case failedRedacting
-    case failedPaginatingEndReached
 }
 
 /// Element X proxies generally wrap the counterpart RustSDK objects while providing platform specific
@@ -96,10 +109,11 @@ protocol TimelineProxyProtocol {
     
     func sendVoiceMessage(url: URL,
                           audioInfo: AudioInfo,
-                          waveform: [UInt16],
+                          waveform: [Float],
                           requestHandle: @MainActor (SendAttachmentJoinHandleProtocol) -> Void) async -> Result<Void, TimelineProxyError>
     
     func sendReadReceipt(for eventID: String, type: ReceiptType) async -> Result<Void, TimelineProxyError>
+    func markAsRead(receiptType: ReceiptType) async -> Result<Void, TimelineProxyError>
     
     func sendMessageEventContent(_ messageContent: RoomMessageEventContentWithoutRelation) async -> Result<Void, TimelineProxyError>
     
@@ -117,9 +131,9 @@ protocol TimelineProxyProtocol {
                   answers: [String],
                   pollKind: Poll.Kind) async -> Result<Void, TimelineProxyError>
     
-    func endPoll(pollStartID: String, text: String) async -> Result<Void, TimelineProxyError>
-    
     func sendPollResponse(pollStartID: String, answers: [String]) async -> Result<Void, TimelineProxyError>
+    
+    func endPoll(pollStartID: String, text: String) async -> Result<Void, TimelineProxyError>
     
     func getLoadedReplyDetails(eventID: String) async -> Result<InReplyToDetails, TimelineProxyError>
     

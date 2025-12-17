@@ -62,7 +62,8 @@ targets:
             CFBundleTypeRole: Editor,
             CFBundleURLName: "Application",
             CFBundleURLSchemes: [
-              $(BASE_BUNDLE_IDENTIFIER)
+              $(BASE_BUNDLE_IDENTIFIER), # The app's own scheme for custom routes
+              "matrix" # Matrix URI scheme for permalinks
             ]
           }
         ]
@@ -119,6 +120,7 @@ targets:
         - applinks:call.element.io
         - applinks:call.element.dev
         - applinks:matrix.to
+        # - applinks:localhost?mode=developer # developer mode only works with https (but self-signed is fine).
         - webcredentials:*.element.io
         com.apple.developer.usernotifications.communication: true
         com.apple.security.app-sandbox: true
@@ -178,6 +180,19 @@ targets:
         else
             echo "warning: Sourcery not installed, run swift run tools setup-project"
         fi
+        
+    - name: 🧙 Sourcery - Generate Accessibility Tests
+      runOnlyWhenInstalling: false
+      basedOnDependencyAnalysis: false
+      shell: /bin/sh
+      script: |
+        export PATH="$PATH:/opt/homebrew/bin"
+        if which sourcery >/dev/null; then
+            sourcery --config Tools/Sourcery/TestablePreviewsDictionary.yml
+            sourcery --config Tools/Sourcery/AccessibilityTests.yml
+        else
+            echo "warning: Sourcery not installed, run swift run tools setup-project"
+        fi
 
     postBuildScripts:
     - name: ⚠️ SwiftLint
@@ -210,10 +225,10 @@ targets:
       embed: true
     - package: Compound
     - package: Algorithms
+    - package: AsyncAlgorithms
     - package: AnalyticsEvents
     - package: Collections
     - package: DeviceKit
-    - package: DTCoreText
     - package: EmbeddedElementCall
     - package: KeychainAccess
     - package: Kingfisher
@@ -232,6 +247,7 @@ targets:
     - package: Emojibase
     - package: WysiwygComposer
     - package: SwiftOGG
+    - package: SwiftSoup
     - package: DSWaveformImage
       product: DSWaveformImageViews
 
@@ -245,3 +261,10 @@ targets:
     - path: ../SupportingFiles
     - path: ../../Tools/Scripts/Templates/SimpleScreenExample/ElementX
     - path: ../../DevelopmentAssets/Media
+    
+    # This is required for testing purposes... The problem with unit tests is that if you
+    # try to `@testable import NSE` you can only get the definition of files, but due to a
+    # limitation in how they work, they can only compile files that are part of the main test
+    # target, so linking will fail. The solution is to just have the main app to reference the
+    # extension code, and test it directly.
+    - path: ../../NSE/Sources

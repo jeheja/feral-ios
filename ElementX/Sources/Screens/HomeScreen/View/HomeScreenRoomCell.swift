@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -14,8 +15,9 @@ struct HomeScreenRoomCell: View {
     @Environment(\.redactionReasons) private var redactionReasons
     
     let room: HomeScreenRoom
-    let context: HomeScreenViewModel.Context
     let isSelected: Bool
+    let mediaProvider: MediaProviderProtocol!
+    let action: (HomeScreenViewAction) -> Void
     
     private let verticalInsets = 12.0
     private let horizontalInsets = 16.0
@@ -23,7 +25,7 @@ struct HomeScreenRoomCell: View {
     var body: some View {
         Button {
             if let roomID = room.roomID {
-                context.send(viewAction: .selectRoom(roomIdentifier: roomID))
+                action(.selectRoom(roomIdentifier: roomID))
             }
         } label: {
             HStack(spacing: 16.0) {
@@ -43,14 +45,15 @@ struct HomeScreenRoomCell: View {
         }
         .buttonStyle(HomeScreenRoomCellButtonStyle(isSelected: isSelected))
         .accessibilityIdentifier(A11yIdentifiers.homeScreen.roomName(room.name))
+        .accessibilityHidden(redactionReasons.contains(.placeholder) ? true : false)
     }
     
     @ViewBuilder @MainActor
     private var avatar: some View {
         if dynamicTypeSize < .accessibility3 {
             RoomAvatarImage(avatar: room.avatar,
-                            avatarSize: .room(on: .home),
-                            mediaProvider: context.mediaProvider)
+                            avatarSize: .room(on: .chats),
+                            mediaProvider: mediaProvider)
                 .dynamicTypeSize(dynamicTypeSize < .accessibility1 ? dynamicTypeSize : .accessibility1)
                 .accessibilityHidden(true)
         }
@@ -96,11 +99,28 @@ struct HomeScreenRoomCell: View {
             ZStack(alignment: .topLeading) {
                 // Hidden text with 2 lines to maintain consistent height, scaling with dynamic text.
                 Text(" \n ")
-                    .lastMessageFormatting()
+                    .lastMessageFormatting(hasFailed: false)
                     .hidden()
                     .environment(\.redactionReasons, []) // Always maintain consistent height
                 
-                lastMessage
+                HStack(alignment: .top, spacing: 4.0) {
+                    switch room.lastMessageState {
+                    case .sending:
+                        CompoundIcon(\.time, size: .small, relativeTo: .compound.bodyMD)
+                            .foregroundStyle(.compound.iconTertiary)
+                            .offset(y: -1)
+                            .accessibilityLabel(L10n.commonSending)
+                    case .failed:
+                        CompoundIcon(\.errorSolid, size: .small, relativeTo: .compound.bodyMD)
+                            .foregroundStyle(.compound.iconCriticalPrimary)
+                            .offset(y: -1)
+                            .accessibilityHidden(true) // The last message contains the error.
+                    case .none:
+                        EmptyView()
+                    }
+                    
+                    lastMessage
+                }
             }
             
             Spacer()
@@ -108,6 +128,7 @@ struct HomeScreenRoomCell: View {
             HStack(spacing: 8) {
                 if room.badges.isCallShown {
                     CompoundIcon(\.videoCallSolid, size: .xSmall, relativeTo: .compound.bodySM)
+                        .accessibilityLabel(L10n.a11yNotificationsOngoingCall)
                 }
                 
                 if room.badges.isMuteShown {
@@ -122,6 +143,7 @@ struct HomeScreenRoomCell: View {
                 if room.badges.isDotShown {
                     Circle()
                         .frame(width: 12, height: 12)
+                        .accessibilityLabel(L10n.a11yNotificationsNewMessages)
                 }
             }
             .foregroundColor(room.isHighlighted ? .compound.iconAccentTertiary : .compound.iconQuaternary)
@@ -130,14 +152,14 @@ struct HomeScreenRoomCell: View {
             
     private var mentionIcon: some View {
         CompoundIcon(\.mention, size: .custom(15), relativeTo: .compound.bodyMD)
-            .accessibilityLabel(L10n.a11yNotificationsMentionsOnly)
+            .accessibilityLabel(L10n.a11yNotificationsNewMentions)
     }
     
     @ViewBuilder
     private var lastMessage: some View {
-        if let lastMessage = room.lastMessage {
-            Text(lastMessage)
-                .lastMessageFormatting()
+        if let displayedLastMessage = room.displayedLastMessage {
+            Text(displayedLastMessage)
+                .lastMessageFormatting(hasFailed: room.lastMessageState == .failed)
         }
     }
 }
@@ -154,9 +176,9 @@ struct HomeScreenRoomCellButtonStyle: ButtonStyle {
 }
 
 private extension View {
-    func lastMessageFormatting() -> some View {
+    func lastMessageFormatting(hasFailed: Bool) -> some View {
         font(.compound.bodyMD)
-            .foregroundColor(.compound.textSecondary)
+            .foregroundColor(hasFailed ? .compound.textCriticalPrimary : .compound.textSecondary)
             .lineLimit(2)
             .multilineTextAlignment(.leading)
     }
@@ -164,31 +186,39 @@ private extension View {
 
 struct HomeScreenRoomCell_Previews: PreviewProvider, TestablePreview {
     static let summaryProviderGeneric = RoomSummaryProviderMock(.init(state: .loaded(.mockRooms)))
-    static let viewModelGeneric = makeViewModel(roomSummaryProvider: summaryProviderGeneric)
     static let genericRooms = summaryProviderGeneric.roomListPublisher.value.compactMap(mockRoom)
     
     static let summaryProviderForNotificationsState = RoomSummaryProviderMock(.init(state: .loaded(.mockRoomsWithNotificationsState)))
-    static let viewModelForNotificationsState = makeViewModel(roomSummaryProvider: summaryProviderForNotificationsState)
     static let notificationsStateRooms = summaryProviderForNotificationsState.roomListPublisher.value.compactMap(mockRoom)
+    
+    static let lastMessageStateRooms = [makeRoom(lastMessageState: .sending), makeRoom(lastMessageState: .failed)]
     
     static var previews: some View {
         VStack(spacing: 0) {
             ForEach(genericRooms) { room in
-                HomeScreenRoomCell(room: room, context: viewModelGeneric.context, isSelected: false)
+                HomeScreenRoomCell(room: room, isSelected: false, mediaProvider: MediaProviderMock(configuration: .init())) { _ in }
             }
             
-            HomeScreenRoomCell(room: .placeholder(), context: viewModelGeneric.context, isSelected: false)
+            HomeScreenRoomCell(room: .placeholder(), isSelected: false, mediaProvider: MediaProviderMock(configuration: .init())) { _ in }
                 .redacted(reason: .placeholder)
         }
         .previewDisplayName("Generic")
         
         VStack(spacing: 0) {
             ForEach(notificationsStateRooms) { room in
-                HomeScreenRoomCell(room: room, context: viewModelForNotificationsState.context, isSelected: false)
+                HomeScreenRoomCell(room: room, isSelected: false, mediaProvider: MediaProviderMock(configuration: .init())) { _ in }
             }
         }
         .previewLayout(.sizeThatFits)
         .previewDisplayName("Notifications State")
+        
+        VStack(spacing: 0) {
+            ForEach(lastMessageStateRooms) { room in
+                HomeScreenRoomCell(room: room, isSelected: false, mediaProvider: MediaProviderMock(configuration: .init())) { _ in }
+            }
+        }
+        .previewLayout(.sizeThatFits)
+        .previewDisplayName("Last Message State")
     }
     
     static func mockRoom(summary: RoomSummary) -> HomeScreenRoom? {
@@ -204,5 +234,32 @@ struct HomeScreenRoomCell_Previews: PreviewProvider, TestablePreview {
                                    analyticsService: ServiceLocator.shared.analytics,
                                    notificationManager: NotificationManagerMock(),
                                    userIndicatorController: ServiceLocator.shared.userIndicatorController)
+    }
+    
+    static func makeRoom(lastMessageState: RoomSummary.LastMessageState) -> HomeScreenRoom {
+        let summary = RoomSummary(room: RoomSDKMock(),
+                                  id: UUID().uuidString,
+                                  joinRequestType: nil,
+                                  name: "Foundation and Empire",
+                                  isDirect: false,
+                                  isSpace: false,
+                                  avatarURL: .mockMXCAvatar,
+                                  heroes: [],
+                                  activeMembersCount: 0,
+                                  lastMessage: AttributedString("How do you see the Emperor then? You think he keeps office hours?"),
+                                  lastMessageDate: .mock,
+                                  lastMessageState: lastMessageState,
+                                  unreadMessagesCount: 2,
+                                  unreadMentionsCount: 0,
+                                  unreadNotificationsCount: 2,
+                                  notificationMode: .mute,
+                                  canonicalAlias: "#foundation-and-empire:matrix.org",
+                                  alternativeAliases: [],
+                                  hasOngoingCall: false,
+                                  isMarkedUnread: false,
+                                  isFavourite: false,
+                                  isTombstoned: false)
+        
+        return .init(summary: summary, hideUnreadMessagesBadge: false)
     }
 }

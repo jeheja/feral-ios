@@ -1,5 +1,6 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
 // SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 // Please see LICENSE files in the repository root for full details.
@@ -30,13 +31,22 @@ struct UserDetailsEditScreen: View {
         .scrollDismissesKeyboard(.immediately)
         .navigationTitle(L10n.screenEditProfileTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(context.viewState.canSave)
         .toolbar { toolbar }
+        .alert(item: $context.alertInfo)
     }
     
     // MARK: - Private
     
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
+        ToolbarItem(placement: .cancellationAction) {
+            if context.viewState.canSave {
+                Button(L10n.actionCancel) {
+                    context.send(viewAction: .cancel)
+                }
+            }
+        }
         ToolbarItem(placement: .confirmationAction) {
             Button(L10n.actionSave) {
                 context.send(viewAction: .save)
@@ -54,6 +64,7 @@ struct UserDetailsEditScreen: View {
                                    url: context.viewState.selectedAvatarURL,
                                    name: context.viewState.currentDisplayName,
                                    contentID: context.viewState.userID,
+                                   isSpace: false,
                                    avatarSize: .user(on: .editUserDetails),
                                    mediaProvider: context.mediaProvider)
                 .overlay(alignment: .bottomTrailing) {
@@ -115,8 +126,7 @@ struct UserDetailsEditScreen: View {
 // MARK: - Previews
 
 struct UserDetailsEditScreen_Previews: PreviewProvider, TestablePreview {
-    static let viewModel = UserDetailsEditScreenViewModel(clientProxy: ClientProxyMock(.init(userID: "@stefan:matrix.org")),
-                                                          mediaProvider: MediaProviderMock(configuration: .init()),
+    static let viewModel = UserDetailsEditScreenViewModel(userSession: UserSessionMock(.init(clientProxy: ClientProxyMock(.init(userID: "@stefan:matrix.org")))),
                                                           mediaUploadingPreprocessor: .init(appSettings: ServiceLocator.shared.settings),
                                                           userIndicatorController: UserIndicatorControllerMock.default)
     

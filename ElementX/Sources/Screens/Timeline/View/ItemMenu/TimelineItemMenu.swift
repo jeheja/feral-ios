@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -52,7 +53,7 @@ struct TimelineItemMenu: View {
             }
         }
         .accessibilityIdentifier(A11yIdentifiers.roomScreen.timelineItemActionMenu)
-        .presentationPage()
+        .presentationSizing(.page)
         .presentationDetents([.medium, .large])
         .presentationBackground(Color.compound.bgCanvasDefault)
         .presentationDragIndicator(.visible)
@@ -162,15 +163,19 @@ struct TimelineItemMenu: View {
                     .foregroundColor(reactionBackgroundColor(for: emoji)))
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .accessibilityLabel(hasReacted(to: emoji) ? L10n.a11yRemoveReaction(emoji) : L10n.a11yAddReaction(emoji))
+    }
+    
+    private func hasReacted(to emoji: String) -> Bool {
+        if let reaction = item.properties.reactions.first(where: { $0.key == emoji }),
+           reaction.isHighlighted {
+            return true
+        }
+        return false
     }
     
     private func reactionBackgroundColor(for emoji: String) -> Color {
-        if let reaction = item.properties.reactions.first(where: { $0.key == emoji }),
-           reaction.isHighlighted {
-            return .compound.bgActionPrimaryRest
-        } else {
-            return .clear
-        }
+        hasReacted(to: emoji) ? .compound.bgActionPrimaryRest : .clear
     }
     
     private func viewsForActions(_ actions: [TimelineItemMenuAction]) -> some View {
@@ -243,17 +248,6 @@ private extension EncryptionAuthenticity {
         switch color {
         case .red: .compound.textCriticalPrimary
         case .gray: .compound.textSecondary
-        }
-    }
-}
-
-private extension View {
-    /// Uses the old page style modal so that on iPadOS 18 the presentation detents have no effect.
-    @ViewBuilder func presentationPage() -> some View {
-        if #available(iOS 18.0, *) {
-            presentationSizing(.page)
-        } else {
-            self
         }
     }
 }
@@ -338,12 +332,14 @@ struct TimelineItemMenu_Previews: PreviewProvider, TestablePreview {
                             deliveryStatus: TimelineItemDeliveryStatus? = nil) -> (EventBasedTimelineItemProtocol, TimelineItemMenuActions)! {
         guard var item = makeItem(itemType: itemType) else { return nil }
         let provider = TimelineItemMenuActionProvider(timelineItem: item,
+                                                      canCurrentUserSendMessage: true,
                                                       canCurrentUserRedactSelf: true,
                                                       canCurrentUserRedactOthers: false,
                                                       canCurrentUserPin: true,
                                                       pinnedEventIDs: [],
                                                       isDM: true,
                                                       isViewSourceEnabled: true,
+                                                      areThreadsEnabled: true,
                                                       timelineKind: .live,
                                                       emojiProvider: EmojiProvider(appSettings: ServiceLocator.shared.settings))
         guard let actions = provider.makeActions() else { return nil }

@@ -1,7 +1,8 @@
 //
-// Copyright 2023, 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2023-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -9,7 +10,7 @@ import Compound
 import SwiftUI
 
 struct StaticLocationScreen: View {
-    @ObservedObject var context: StaticLocationScreenViewModel.Context
+    @Bindable var context: StaticLocationScreenViewModel.Context
     
     var body: some View {
         VStack(spacing: 0) {
@@ -130,7 +131,7 @@ struct StaticLocationScreen: View {
             Image(systemName: "square.and.arrow.up")
         }
     }
-
+    
     @ViewBuilder
     private var shareSheet: some View {
         let location = context.viewState.initialMapCenter
@@ -139,7 +140,16 @@ struct StaticLocationScreen: View {
                         applicationActivities: ShareToMapsAppActivity.MapsAppType.allCases.map { ShareToMapsAppActivity(type: $0, location: location, locationDescription: locationDescription) })
             .edgesIgnoringSafeArea(.bottom)
             .presentationDetents([.medium, .large])
+            .presentationCompactAdaptation(shareSheetCompactPresentation)
             .presentationDragIndicator(.hidden)
+    }
+    
+    private var shareSheetCompactPresentation: PresentationAdaptation {
+        if #available(iOS 26.0, *) {
+            .none // ShareLinks use a popover presentation on iOS 26, let it match that.
+        } else {
+            .sheet
+        }
     }
 }
 
@@ -148,13 +158,22 @@ struct StaticLocationScreen: View {
 struct StaticLocationScreenViewer_Previews: PreviewProvider, TestablePreview {
     static let viewModel = StaticLocationScreenViewModel(interactionMode: .viewOnly(geoURI: .init(latitude: 41.9027835,
                                                                                                   longitude: 12.4963655)),
-                                                         mapURLBuilder: ServiceLocator.shared.settings.mapTilerConfiguration)
+                                                         mapURLBuilder: ServiceLocator.shared.settings.mapTilerConfiguration,
+                                                         timelineController: MockTimelineController(),
+                                                         analytics: ServiceLocator.shared.analytics,
+                                                         userIndicatorController: UserIndicatorControllerMock())
     static let pickerViewModel = StaticLocationScreenViewModel(interactionMode: .picker,
-                                                               mapURLBuilder: ServiceLocator.shared.settings.mapTilerConfiguration)
+                                                               mapURLBuilder: ServiceLocator.shared.settings.mapTilerConfiguration,
+                                                               timelineController: MockTimelineController(),
+                                                               analytics: ServiceLocator.shared.analytics,
+                                                               userIndicatorController: UserIndicatorControllerMock())
     static let descriptionViewModel = StaticLocationScreenViewModel(interactionMode: .viewOnly(geoURI: .init(latitude: 41.9027835,
                                                                                                              longitude: 12.4963655),
                                                                                                description: "Cool position"),
-                                                                    mapURLBuilder: ServiceLocator.shared.settings.mapTilerConfiguration)
+                                                                    mapURLBuilder: ServiceLocator.shared.settings.mapTilerConfiguration,
+                                                                    timelineController: MockTimelineController(),
+                                                                    analytics: ServiceLocator.shared.analytics,
+                                                                    userIndicatorController: UserIndicatorControllerMock())
     
     static var previews: some View {
         NavigationStack {

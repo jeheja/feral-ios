@@ -1,5 +1,6 @@
 //
-// Copyright 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2024-2025 New Vector Ltd.
 //
 // SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 // Please see LICENSE files in the repository root for full details.
@@ -23,6 +24,8 @@ struct PinnedItemsBannerView: View {
         .padding(.leading, 16)
         .background(Color.compound.bgCanvasDefault)
         .shadow(color: Color(red: 0.11, green: 0.11, blue: 0.13).opacity(0.1), radius: 12, x: 0, y: 4)
+        // To include the shadow in the size
+        .padding(.bottom, 28)
     }
     
     private var mainButton: some View {

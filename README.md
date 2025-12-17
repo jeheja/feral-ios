@@ -11,9 +11,9 @@
 
 # Element X iOS
 
-Element X iOS is a [Matrix](https://matrix.org/) iOS Client provided by [Element](https://element.io/).
+Element X iOS is the next-generation [Matrix](https://matrix.org/) client provided by [Element](https://element.io/).
 
-The application is a total rewrite of [Element iOS](https://github.com/element-hq/element-ios) using the [Matrix Rust SDK](https://github.com/matrix-org/matrix-rust-sdk) underneath and targeting devices running iOS 17+.
+Compared to the previous-generation [Element Classic](https://github.com/element-hq/element-ios), it is a total rewrite using the [Matrix Rust SDK](https://github.com/matrix-org/matrix-rust-sdk) underneath and targeting devices running iOS 17+.
 
 ## Rust SDK
 
@@ -21,7 +21,7 @@ Element X leverages the [Matrix Rust SDK](https://github.com/matrix-org/matrix-r
 
 ## Status
 
-This project is in an early rollout & migration phase.
+This project is actively developed and supported. New users are recommended to use Element X instead of the previous-generation app.
 
 ## Contributing
 
@@ -45,9 +45,10 @@ Please read our [forking guide](docs/FORKING.md).
 
 ## Copyright & License
 
-Copyright (c) 2022 - 2025 New Vector Ltd
+Copyright (c) 2025 Element Creations Ltd.
+Copyright (c) 2022 - 2025 New Vector Ltd.
 
-This software is dual licensed by New Vector Ltd (Element). It can be used either:
+This software is dual licensed by Element Creations Ltd (Element). It can be used either:
 
 (1) for free under the terms of the GNU Affero General Public License (as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version); OR
 

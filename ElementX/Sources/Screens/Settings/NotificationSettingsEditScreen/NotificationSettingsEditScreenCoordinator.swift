@@ -1,7 +1,8 @@
 //
-// Copyright 2022-2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2022-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -12,7 +13,6 @@ struct NotificationSettingsEditScreenCoordinatorParameters {
     weak var navigationStackCoordinator: NavigationStackCoordinator?
     let chatType: NotificationSettingsChatType
     let userSession: UserSessionProtocol
-    let notificationSettings: NotificationSettingsProxyProtocol
 }
 
 final class NotificationSettingsEditScreenCoordinator: CoordinatorProtocol {
@@ -24,8 +24,7 @@ final class NotificationSettingsEditScreenCoordinator: CoordinatorProtocol {
         self.parameters = parameters
         
         viewModel = NotificationSettingsEditScreenViewModel(chatType: parameters.chatType,
-                                                            userSession: parameters.userSession,
-                                                            notificationSettingsProxy: parameters.notificationSettings)
+                                                            userSession: parameters.userSession)
     }
     
     func start() {
@@ -51,7 +50,7 @@ final class NotificationSettingsEditScreenCoordinator: CoordinatorProtocol {
         guard case let .joined(roomProxy) = await parameters.userSession.clientProxy.roomForIdentifier(roomID) else { return }
          
         let roomNotificationSettingsParameters = RoomNotificationSettingsScreenCoordinatorParameters(navigationStackCoordinator: parameters.navigationStackCoordinator,
-                                                                                                     notificationSettingsProxy: parameters.notificationSettings,
+                                                                                                     notificationSettingsProxy: parameters.userSession.clientProxy.notificationSettings,
                                                                                                      roomProxy: roomProxy,
                                                                                                      displayAsUserDefinedRoomSettings: true)
         let roomNotificationSettingsCoordinator = RoomNotificationSettingsScreenCoordinator(parameters: roomNotificationSettingsParameters)

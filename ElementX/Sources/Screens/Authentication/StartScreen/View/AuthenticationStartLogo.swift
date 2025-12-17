@@ -1,7 +1,8 @@
 //
-// Copyright 2023, 2024 New Vector Ltd.
+// Copyright 2025 Element Creations Ltd.
+// Copyright 2023-2025 New Vector Ltd.
 //
-// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
 // Please see LICENSE files in the repository root for full details.
 //
 
@@ -12,7 +13,7 @@ struct AuthenticationStartLogo: View {
     @Environment(\.colorScheme) private var colorScheme
     
     /// Set to `true` when using on top of `Asset.Images.launchBackground`
-    let isOnGradient: Bool
+    let hideBrandChrome: Bool
     
     /// Extra padding needed to avoid cropping the shadows.
     private let extra: CGFloat = 64
@@ -22,11 +23,19 @@ struct AuthenticationStartLogo: View {
     private var isLight: Bool { colorScheme == .light }
     
     var body: some View {
+        if hideBrandChrome {
+            Image(asset: Asset.Images.appLogo)
+        } else {
+            brandLogo
+        }
+    }
+    
+    private var brandLogo: some View {
         Image(asset: Asset.Images.appLogo)
             .background {
                 Circle()
                     .inset(by: 1)
-                    .shadow(color: .black.opacity(!isLight && isOnGradient ? 0.3 : 0.4),
+                    .shadow(color: .black.opacity(!isLight ? 0.3 : 0.4),
                             radius: 12.57143,
                             y: 6.28571)
                 
@@ -40,19 +49,19 @@ struct AuthenticationStartLogo: View {
             .padding(24)
             .background {
                 Color.white
-                    .opacity(isLight ? 0.23 : isOnGradient ? 0.05 : 0.13)
+                    .opacity(isLight ? 0.23 : 0.05)
             }
             .clipShape(outerShape)
             .overlay {
                 outerShape
                     .inset(by: 0.25)
-                    .stroke(.white.opacity(isLight ? 1 : isOnGradient ? 0.9 : 0.25), lineWidth: 0.5)
+                    .stroke(.white.opacity(isLight ? 1 : 0.9), lineWidth: 0.5)
                     .blendMode(isLight ? .normal : .overlay)
             }
             .padding(extra)
             .background {
                 ZStack {
-                    if !isLight, isOnGradient {
+                    if !isLight {
                         outerShape
                             .inset(by: 1)
                             .padding(extra)

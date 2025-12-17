@@ -7,6 +7,7 @@
   "labels" : [
     "pr-misc"
   ],
+  "ignoreDeps": ["pointfreeco/swift-snapshot-testing"],
   "packageRules" : [
     {
       "matchManagers": ["github-actions"],
@@ -17,12 +18,13 @@
       "groupName" : "Swift"
     },
     {
-      "matchManagers": ["bundler"],
-      "groupName" : "Ruby"
+      "managers": ["swift", "cocoapods"],
+      "matchPaths": ["compound-ios/Package.swift"],
+      "groupName": "Compound"
     },
     {
-      "matchPackageNames": ["codecov/codecov-action"],
-      "allowedVersions": "^3.0.0"
+      "matchManagers": ["bundler"],
+      "groupName" : "Ruby"
     }
   ]
 }
