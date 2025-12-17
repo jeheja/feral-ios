@@ -25,7 +25,7 @@ workflows:
         APP_DISPLAY_NAME: "Feral"
         XCODE_PROJECT: "ElementX.xcodeproj"
         XCODE_SCHEME: "ElementX"
-      xcode: 16.4
+      xcode: 26.1
       cocoapods: default
       node: latest
     # Cache disabled temporarily to ensure fresh builds
@@ -104,7 +104,7 @@ workflows:
             -scheme "$XCODE_SCHEME" \
             -sdk iphonesimulator \
             -configuration Debug \
-            -destination "platform=iOS Simulator,name=iPhone 16,OS=18.5" \
+            -destination "platform=iOS Simulator,name=iPhone 17,OS=26.1" \
             -arch arm64 \
             ONLY_ACTIVE_ARCH=YES \
             CODE_SIGNING_REQUIRED=NO \
@@ -150,7 +150,7 @@ workflows:
         APP_DISPLAY_NAME: "Feral"
         XCODE_PROJECT: "ElementX.xcodeproj"
         XCODE_SCHEME: "ElementX"
-      xcode: 16.4  # Match the version from your CI
+      xcode: 26.1  # Match the version from your CI
       cocoapods: default
       node: latest
     # Cache disabled temporarily to ensure fresh builds
