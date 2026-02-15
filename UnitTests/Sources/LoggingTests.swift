@@ -19,8 +19,9 @@ class LoggingTests: XCTestCase {
         Tracing.logsDirectoryOverride = nil
         try reloadTracingFileWriter(configuration: .init(path: URL.appGroupLogsDirectory.path(percentEncoded: false),
                                                          filePrefix: "console-tests",
-                                                         fileSuffix: "log",
-                                                         maxFiles: 100))
+                                                         fileSuffix: ".log",
+                                                         maxTotalSizeBytes: 1000,
+                                                         maxAgeSeconds: 1000))
     }
     
     func testFileLogging() throws {
@@ -34,7 +35,7 @@ class LoggingTests: XCTestCase {
             return
         }
         
-        try XCTAssertTrue(String(contentsOf: logFile).contains(infoLog))
+        try XCTAssertTrue(String(contentsOf: logFile, encoding: .utf8).contains(infoLog))
     }
         
     func testLogLevels() throws {
@@ -48,12 +49,12 @@ class LoggingTests: XCTestCase {
             return
         }
         
-        try XCTAssertFalse(String(contentsOf: logFile).contains(verboseLog))
+        try XCTAssertFalse(String(contentsOf: logFile, encoding: .utf8).contains(verboseLog))
     }
     
     /// This is meant to test the `Target.tests.configure(…)`, but at this stage the test is somewhat pointless
     /// as it is unlikely to have been called before `tearDown` has manually set the file prefix 😕.
-    func testTargetName() throws {
+    func testTargetName() {
         MXLog.info(UUID().uuidString)
         guard let logFile = Tracing.logFiles.first else {
             XCTFail(Constants.genericFailure)
@@ -103,14 +104,14 @@ class LoggingTests: XCTestCase {
             return
         }
         
-        let content = try String(contentsOf: logFile)
+        let content = try String(contentsOf: logFile, encoding: .utf8)
         XCTAssertTrue(content.contains(roomSummary.id))
         XCTAssertFalse(content.contains(roomName))
         XCTAssertFalse(content.contains(lastMessage))
         XCTAssertFalse(content.contains(heroName))
     }
         
-    func testTimelineContentIsRedacted() async throws {
+    func testTimelineContentIsRedacted() throws {
         try setupTest()
         
         // Given timeline items that contain text
@@ -185,7 +186,7 @@ class LoggingTests: XCTestCase {
             return
         }
         
-        let content = try String(contentsOf: logFile)
+        let content = try String(contentsOf: logFile, encoding: .utf8)
         XCTAssertTrue(content.contains(textMessage.id.uniqueID.value))
         XCTAssertFalse(content.contains(textMessage.body))
         XCTAssertFalse(content.contains(textAttributedString))
@@ -254,7 +255,7 @@ class LoggingTests: XCTestCase {
             return
         }
 
-        let content = try String(contentsOf: logFile)
+        let content = try String(contentsOf: logFile, encoding: .utf8)
         XCTAssertTrue(content.contains(String(describing: TextMessageContent.self)))
         XCTAssertFalse(content.contains(textString))
         
@@ -274,7 +275,7 @@ class LoggingTests: XCTestCase {
         XCTAssertFalse(content.contains(rustFileMessage.filename))
     }
     
-    func testLogFileSorting() async throws {
+    func testLogFileSorting() throws {
         try setupTest(redirectTracingFileWriter: false)
         
         // Given a collection of log files.
@@ -343,8 +344,9 @@ class LoggingTests: XCTestCase {
         if redirectTracingFileWriter {
             try reloadTracingFileWriter(configuration: .init(path: testDirectory.path(percentEncoded: false),
                                                              filePrefix: "console",
-                                                             fileSuffix: "log",
-                                                             maxFiles: 100))
+                                                             fileSuffix: ".log",
+                                                             maxTotalSizeBytes: 1000,
+                                                             maxAgeSeconds: 1000))
         }
     }
 }

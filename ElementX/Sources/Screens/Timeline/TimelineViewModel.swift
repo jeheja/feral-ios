@@ -107,6 +107,7 @@ class TimelineViewModel: TimelineViewModelType, TimelineViewModelProtocol {
                                                        emojiProvider: emojiProvider,
                                                        linkMetadataProvider: hideTimelineMedia ? nil : linkMetadataProvider,
                                                        mapTilerConfiguration: appSettings.mapTilerConfiguration,
+                                                       enableKeyShareOnInvite: appSettings.enableKeyShareOnInvite,
                                                        bindings: .init(reactionsCollapsed: [:])),
                    mediaProvider: userSession.mediaProvider)
         
@@ -255,7 +256,9 @@ class TimelineViewModel: TimelineViewModelType, TimelineViewModelProtocol {
         }
         
         showFocusLoadingIndicator()
-        defer { hideFocusLoadingIndicator() }
+        defer {
+            hideFocusLoadingIndicator()
+        }
         
         switch await timelineController.focusOnEvent(eventID, timelineSize: Constants.detachedTimelineSize) {
         case .success:
@@ -317,6 +320,7 @@ class TimelineViewModel: TimelineViewModelType, TimelineViewModelProtocol {
             focussedEvent.appearance = .hasAppeared
             state.timelineState.focussedEvent = focussedEvent
             hideFocusLoadingIndicator()
+            analyticsService.signpost.finishTransaction(.notificationToMessage)
         }
     }
     
@@ -426,6 +430,10 @@ class TimelineViewModel: TimelineViewModelType, TimelineViewModelProtocol {
                 switch callback {
                 case .updatedTimelineItems(let updatedItems, let isSwitchingTimelines):
                     buildTimelineViews(timelineItems: updatedItems, isSwitchingTimelines: isSwitchingTimelines)
+                    
+                    if !updatedItems.isEmpty {
+                        analyticsService.signpost.finishTransaction(.openRoom)
+                    }
                 case .paginationState(let paginationState):
                     if state.timelineState.paginationState != paginationState {
                         state.timelineState.paginationState = paginationState
@@ -498,6 +506,9 @@ class TimelineViewModel: TimelineViewModelType, TimelineViewModelProtocol {
                     Task { await self.viewInRoomTimeline(eventID: eventID) }
                 case .displayThread(let itemID):
                     actionsSubject.send(.displayThread(itemID: itemID))
+                case .showTranslation(let text):
+                    self.state.bindings.textToBeTranslated = text
+                    self.state.bindings.showTranslation = true
                 }
             }
             .store(in: &cancellables)
@@ -568,7 +579,7 @@ class TimelineViewModel: TimelineViewModelType, TimelineViewModelProtocol {
 
         shouldShowInviteAlert
             .sink { [weak self] _ in
-                self?.showInviteAlert()
+                self?.displayAlert(.inviteAgain)
             }
             .store(in: &cancellables)
     }
@@ -610,7 +621,7 @@ class TimelineViewModel: TimelineViewModelType, TimelineViewModelProtocol {
                 break
             }
             
-            if state.timelineState.paginationState.forward == .timelineEndReached {
+            if state.timelineState.paginationState.forward == .endReached {
                 focusLive()
             }
             
@@ -671,6 +682,8 @@ class TimelineViewModel: TimelineViewModelType, TimelineViewModelProtocol {
             actionsSubject.send(.displayResolveSendFailure(failure: failure,
                                                            sendHandle: sendHandle))
             
+        } else if let forwarderMessage = eventTimelineItem.properties.encryptionForwarder?.message {
+            displayAlert(.encryptionForwarder(forwarderMessage))
         } else if let authenticityMessage = eventTimelineItem.properties.encryptionAuthenticity?.message {
             displayAlert(.encryptionAuthenticity(authenticityMessage))
         }
@@ -852,19 +865,11 @@ class TimelineViewModel: TimelineViewModelType, TimelineViewModelProtocol {
 
     // MARK: - Direct chats logics
 
-    private func showInviteAlert() {
-        userIndicatorController.alertInfo = .init(id: .init(),
-                                                  title: L10n.screenRoomInviteAgainAlertTitle,
-                                                  message: L10n.screenRoomInviteAgainAlertMessage,
-                                                  primaryButton: .init(title: L10n.actionInvite) { [weak self] in self?.inviteOtherDMUserBack() },
-                                                  secondaryButton: .init(title: L10n.actionCancel, role: .cancel, action: nil))
-    }
-
     private let inviteLoadingIndicatorID = UUID().uuidString
 
     private func inviteOtherDMUserBack() {
         guard roomProxy.infoPublisher.value.isUserAloneInDirectRoom else {
-            userIndicatorController.alertInfo = .init(id: .init(), title: L10n.commonError)
+            displayAlert(.unknown)
             return
         }
 
@@ -879,7 +884,7 @@ class TimelineViewModel: TimelineViewModelType, TimelineViewModelProtocol {
                 members.count == 2,
                 let otherPerson = members.first(where: { $0.userID != roomProxy.ownUserID && $0.membership == .leave })
             else {
-                userIndicatorController.alertInfo = .init(id: .init(), title: L10n.commonError)
+                displayAlert(.unknown)
                 return
             }
 
@@ -887,9 +892,7 @@ class TimelineViewModel: TimelineViewModelType, TimelineViewModelProtocol {
             case .success:
                 break
             case .failure:
-                userIndicatorController.alertInfo = .init(id: .init(),
-                                                          title: L10n.commonUnableToInviteTitle,
-                                                          message: L10n.commonUnableToInviteMessage)
+                displayAlert(.unableToInvite)
             }
         }
     }
@@ -1000,6 +1003,26 @@ class TimelineViewModel: TimelineViewModelType, TimelineViewModelProtocol {
             state.bindings.alertInfo = .init(id: type,
                                              title: message,
                                              primaryButton: .init(title: L10n.actionOk, action: nil))
+        case .encryptionForwarder(let message):
+            state.bindings.alertInfo = .init(id: type,
+                                             title: message,
+                                             primaryButton: .init(title: L10n.actionOk, action: nil),
+                                             secondaryButton: .init(title: L10n.actionLearnMore) { [weak self] in
+                                                 guard let self else { return }
+                                                 appMediator.open(appSettings.historySharingDetailsURL)
+                                             })
+        case .inviteAgain:
+            state.bindings.alertInfo = .init(id: .inviteAgain,
+                                             title: L10n.screenRoomInviteAgainAlertTitle,
+                                             message: L10n.screenRoomInviteAgainAlertMessage,
+                                             primaryButton: .init(title: L10n.actionInvite) { [weak self] in self?.inviteOtherDMUserBack() },
+                                             secondaryButton: .init(title: L10n.actionCancel, role: .cancel, action: nil))
+        case .unableToInvite:
+            state.bindings.alertInfo = .init(id: .unableToInvite,
+                                             title: L10n.commonUnableToInviteTitle,
+                                             message: L10n.commonUnableToInviteMessage)
+        case .unknown:
+            state.bindings.alertInfo = .init(id: .unknown, title: L10n.commonError)
         }
     }
     

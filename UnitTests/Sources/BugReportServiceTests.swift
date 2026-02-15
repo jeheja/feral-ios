@@ -6,9 +6,8 @@
 // Please see LICENSE files in the repository root for full details.
 //
 
-@testable import ElementX
-
 import Combine
+@testable import ElementX
 import Foundation
 import XCTest
 
@@ -51,24 +50,22 @@ class BugReportServiceTests: XCTestCase {
         XCTAssertFalse(reportURL.isEmpty)
     }
     
-    func testInitialStateWithRealService() throws {
+    func testInitialStateWithRealService() {
         let urlPublisher: CurrentValueSubject<RageshakeConfiguration, Never> = .init(.url("https://example.com/submit"))
         let service = BugReportService(rageshakeURLPublisher: urlPublisher.asCurrentValuePublisher(),
                                        applicationID: "mock_app_id",
                                        sdkGitSHA: "1234",
-                                       maxUploadSize: ServiceLocator.shared.settings.bugReportMaxUploadSize,
                                        session: .mock,
                                        appHooks: AppHooks())
         XCTAssertTrue(service.isEnabled)
         XCTAssertFalse(service.crashedLastRun)
     }
     
-    func testInitialStateWithRealServiceAndDisabled() throws {
+    func testInitialStateWithRealServiceAndDisabled() {
         let urlPublisher: CurrentValueSubject<RageshakeConfiguration, Never> = .init(.disabled)
         let service = BugReportService(rageshakeURLPublisher: urlPublisher.asCurrentValuePublisher(),
                                        applicationID: "mock_app_id",
                                        sdkGitSHA: "1234",
-                                       maxUploadSize: ServiceLocator.shared.settings.bugReportMaxUploadSize,
                                        session: .mock,
                                        appHooks: AppHooks())
         XCTAssertFalse(service.isEnabled)
@@ -80,7 +77,6 @@ class BugReportServiceTests: XCTestCase {
         let service = BugReportService(rageshakeURLPublisher: urlPublisher.asCurrentValuePublisher(),
                                        applicationID: "mock_app_id",
                                        sdkGitSHA: "1234",
-                                       maxUploadSize: ServiceLocator.shared.settings.bugReportMaxUploadSize,
                                        session: .mock,
                                        appHooks: AppHooks())
 
@@ -108,7 +104,6 @@ class BugReportServiceTests: XCTestCase {
         let service = BugReportService(rageshakeURLPublisher: appSettings.bugReportRageshakeURL.publisher,
                                        applicationID: "mock_app_id",
                                        sdkGitSHA: "1234",
-                                       maxUploadSize: ServiceLocator.shared.settings.bugReportMaxUploadSize,
                                        session: .mock,
                                        appHooks: AppHooks())
         XCTAssertTrue(service.isEnabled)
@@ -139,31 +134,6 @@ class BugReportServiceTests: XCTestCase {
         let defaultConfigurationResponse = try await service.submitBugReport(bugReport, progressListener: progressSubject).get()
         
         XCTAssertEqual(defaultConfigurationResponse.reportURL, initialURL.absoluteString.replacingOccurrences(of: "submit", with: "123"))
-    }
-    
-    func testLogsMaxSize() {
-        // Given a new set of logs
-        var logs = BugReportService.Logs(maxFileSize: 1000)
-        XCTAssertEqual(logs.zippedSize, 0)
-        XCTAssertEqual(logs.originalSize, 0)
-        XCTAssertTrue(logs.files.isEmpty)
-        
-        // When adding new files within the size limit
-        logs.appendFile(at: .homeDirectory, zippedSize: 250, originalSize: 1000)
-        logs.appendFile(at: .picturesDirectory, zippedSize: 500, originalSize: 2000)
-        
-        // Then the logs should be included
-        XCTAssertEqual(logs.zippedSize, 750)
-        XCTAssertEqual(logs.originalSize, 3000)
-        XCTAssertEqual(logs.files, [.homeDirectory, .picturesDirectory])
-        
-        // When adding a new file larger that will exceed the size limit
-        logs.appendFile(at: .homeDirectory, zippedSize: 500, originalSize: 2000)
-        
-        // Then the files shouldn't be included.
-        XCTAssertEqual(logs.zippedSize, 750)
-        XCTAssertEqual(logs.originalSize, 3000)
-        XCTAssertEqual(logs.files, [.homeDirectory, .picturesDirectory])
     }
 }
 
@@ -198,7 +168,6 @@ private extension URLSession {
     static var mock: URLSession {
         let configuration = URLSessionConfiguration.default
         configuration.protocolClasses = [MockURLProtocol.self] + (configuration.protocolClasses ?? [])
-        let result = URLSession(configuration: configuration)
-        return result
+        return URLSession(configuration: configuration)
     }
 }

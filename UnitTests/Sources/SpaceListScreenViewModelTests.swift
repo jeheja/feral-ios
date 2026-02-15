@@ -7,19 +7,18 @@
 //
 
 import Combine
+@testable import ElementX
 import XCTest
 
-@testable import ElementX
-
 @MainActor
-class SpaceListScreenViewModelTests: XCTestCase {
-    var joinedSpacesSubject: CurrentValueSubject<[SpaceRoomProxyProtocol], Never>!
+class SpacesScreenViewModelTests: XCTestCase {
+    var topLevelSpacesSubject: CurrentValueSubject<[SpaceServiceRoom], Never>!
     var spaceServiceProxy: SpaceServiceProxyMock!
     var appSettings: AppSettings!
     
-    var viewModel: SpaceListScreenViewModelProtocol!
+    var viewModel: SpacesScreenViewModelProtocol!
     
-    var context: SpaceListScreenViewModelType.Context {
+    var context: SpacesScreenViewModelType.Context {
         viewModel.context
     }
     
@@ -34,29 +33,29 @@ class SpaceListScreenViewModelTests: XCTestCase {
 
     func testInitialState() {
         setupViewModel()
-        XCTAssertEqual(context.viewState.joinedSpaces.count, 3)
+        XCTAssertEqual(context.viewState.topLevelSpaces.count, 3)
     }
     
-    func testJoinedSpacesSubscription() async throws {
+    func testTopLevelSpacesSubscription() async throws {
         setupViewModel()
         
-        var deferred = deferFulfillment(context.observe(\.viewState.joinedSpaces)) { $0.count == 0 }
-        joinedSpacesSubject.send([])
+        var deferred = deferFulfillment(context.observe(\.viewState.topLevelSpaces)) { $0.count == 0 }
+        topLevelSpacesSubject.send([])
         try await deferred.fulfill()
-        XCTAssertEqual(context.viewState.joinedSpaces.count, 0)
+        XCTAssertEqual(context.viewState.topLevelSpaces.count, 0)
         
-        deferred = deferFulfillment(context.observe(\.viewState.joinedSpaces)) { $0.count == 1 }
-        joinedSpacesSubject.send([
-            SpaceRoomProxyMock(.init(isSpace: true))
+        deferred = deferFulfillment(context.observe(\.viewState.topLevelSpaces)) { $0.count == 1 }
+        topLevelSpacesSubject.send([
+            SpaceServiceRoom.mock(isSpace: true)
         ])
         try await deferred.fulfill()
-        XCTAssertEqual(context.viewState.joinedSpaces.count, 1)
+        XCTAssertEqual(context.viewState.topLevelSpaces.count, 1)
     }
     
     func testSelectingSpace() async throws {
         setupViewModel()
         
-        let selectedSpace = joinedSpacesSubject.value[0]
+        let selectedSpace = topLevelSpacesSubject.value[0]
         let deferred = deferFulfillment(viewModel.actionsPublisher) { _ in true }
         viewModel.context.send(viewAction: .spaceAction(.select(selectedSpace)))
         let action = try await deferred.fulfill()
@@ -96,22 +95,22 @@ class SpaceListScreenViewModelTests: XCTestCase {
         let clientProxy = ClientProxyMock(.init())
         let userSession = UserSessionMock(.init(clientProxy: clientProxy))
         
-        joinedSpacesSubject = .init([
-            SpaceRoomProxyMock(.init(id: "space1", isSpace: true)),
-            SpaceRoomProxyMock(.init(id: "space2", isSpace: true)),
-            SpaceRoomProxyMock(.init(id: "space3", isSpace: true))
+        topLevelSpacesSubject = .init([
+            SpaceServiceRoom.mock(id: "space1", isSpace: true),
+            SpaceServiceRoom.mock(id: "space2", isSpace: true),
+            SpaceServiceRoom.mock(id: "space3", isSpace: true)
         ])
         spaceServiceProxy = SpaceServiceProxyMock(.init())
-        spaceServiceProxy.joinedSpacesPublisher = joinedSpacesSubject.asCurrentValuePublisher()
-        spaceServiceProxy.spaceRoomListSpaceIDClosure = { [joinedSpacesSubject] spaceID in
-            guard let spaceRoomProxy = joinedSpacesSubject?.value.first(where: { $0.id == spaceID }) else { return .failure(.missingSpace) }
-            return .success(SpaceRoomListProxyMock(.init(spaceRoomProxy: spaceRoomProxy)))
+        spaceServiceProxy.topLevelSpacesPublisher = topLevelSpacesSubject.asCurrentValuePublisher()
+        spaceServiceProxy.spaceRoomListSpaceIDClosure = { [topLevelSpacesSubject] spaceID in
+            guard let spaceServiceRoom = topLevelSpacesSubject?.value.first(where: { $0.id == spaceID }) else { return .failure(.missingSpace) }
+            return .success(SpaceRoomListProxyMock(.init(spaceServiceRoom: spaceServiceRoom)))
         }
         clientProxy.spaceService = spaceServiceProxy
         
-        viewModel = SpaceListScreenViewModel(userSession: userSession,
-                                             selectedSpacePublisher: .init(nil),
-                                             appSettings: ServiceLocator.shared.settings,
-                                             userIndicatorController: UserIndicatorControllerMock())
+        viewModel = SpacesScreenViewModel(userSession: userSession,
+                                          selectedSpacePublisher: .init(nil),
+                                          appSettings: ServiceLocator.shared.settings,
+                                          userIndicatorController: UserIndicatorControllerMock())
     }
 }

@@ -12,16 +12,16 @@ import MatrixRustSDK
 
 extension SpaceRoomListProxyMock {
     class Configuration {
-        var spaceRoomProxy: SpaceRoomProxyProtocol
-        var initialSpaceRooms: [SpaceRoomProxyProtocol]
+        var spaceServiceRoom: SpaceServiceRoom
+        var initialSpaceRooms: [SpaceServiceRoom]
         var paginationStateSubject: CurrentValueSubject<SpaceRoomListPaginationState, Never>
-        var paginationResponses: [[SpaceRoomProxyProtocol]]
+        var paginationResponses: [[SpaceServiceRoom]]
         
-        init(spaceRoomProxy: SpaceRoomProxyProtocol,
-             initialSpaceRooms: [SpaceRoomProxyProtocol] = [],
+        init(spaceServiceRoom: SpaceServiceRoom,
+             initialSpaceRooms: [SpaceServiceRoom] = [],
              paginationStateSubject: CurrentValueSubject<SpaceRoomListPaginationState, Never> = .init(.idle(endReached: true)),
-             paginationResponses: [[SpaceRoomProxyProtocol]] = []) {
-            self.spaceRoomProxy = spaceRoomProxy
+             paginationResponses: [[SpaceServiceRoom]] = []) {
+            self.spaceServiceRoom = spaceServiceRoom
             self.initialSpaceRooms = initialSpaceRooms
             self.paginationStateSubject = paginationStateSubject
             self.paginationResponses = paginationResponses
@@ -31,10 +31,10 @@ extension SpaceRoomListProxyMock {
     convenience init(_ configuration: Configuration) {
         self.init()
         
-        let spaceRoomsSubject: CurrentValueSubject<[SpaceRoomProxyProtocol], Never> = .init(configuration.initialSpaceRooms)
+        let spaceRoomsSubject: CurrentValueSubject<[SpaceServiceRoom], Never> = .init(configuration.initialSpaceRooms)
         
-        id = configuration.spaceRoomProxy.id
-        spaceRoomProxyPublisher = .init(configuration.spaceRoomProxy)
+        id = configuration.spaceServiceRoom.id
+        spaceServiceRoomPublisher = .init(configuration.spaceServiceRoom)
         spaceRoomsPublisher = spaceRoomsSubject.asCurrentValuePublisher()
         paginationStatePublisher = configuration.paginationStateSubject.asCurrentValuePublisher()
         

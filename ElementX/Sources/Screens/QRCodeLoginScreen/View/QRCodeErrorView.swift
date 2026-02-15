@@ -12,11 +12,13 @@ struct QRCodeErrorView: View {
     let errorState: QRCodeLoginState.ErrorState
     let canSignInManually: Bool
     
-    enum Action { case openSettings, startScan, signInManually, cancel }
+    enum Action { case openSettings, startOver, signInManually, cancel }
     let action: (Action) -> Void
     
     var title: String {
         switch errorState {
+        case .notSupported:
+            L10n.screenLinkNewDeviceErrorNotSupportedTitle
         case .noCameraPermission:
             L10n.screenQrCodeLoginNoCameraPermissionStateTitle
         case .connectionNotSecure:
@@ -29,8 +31,10 @@ struct QRCodeErrorView: View {
             L10n.screenQrCodeLoginErrorExpiredTitle
         case .linkingNotSupported:
             L10n.screenQrCodeLoginErrorLinkingNotSuportedTitle
-        case .deviceNotSupported:
+        case .slidingSyncNotAvailable:
             L10n.screenQrCodeLoginErrorSlidingSyncNotSupportedTitle(InfoPlistReader.main.bundleDisplayName)
+        case .deviceAlreadySignedIn:
+            L10n.screenQrCodeLoginErrorDeviceAlreadySignedInTitle
         case .unknown:
             L10n.commonSomethingWentWrong
         }
@@ -38,6 +42,8 @@ struct QRCodeErrorView: View {
     
     var subtitle: String {
         switch errorState {
+        case .notSupported:
+            L10n.screenLinkNewDeviceErrorNotSupportedSubtitle
         case .noCameraPermission:
             L10n.screenQrCodeLoginNoCameraPermissionStateDescription(InfoPlistReader.main.productionAppName)
         case .connectionNotSecure:
@@ -50,58 +56,45 @@ struct QRCodeErrorView: View {
             L10n.screenQrCodeLoginErrorExpiredSubtitle
         case .linkingNotSupported:
             L10n.screenQrCodeLoginErrorLinkingNotSuportedSubtitle(InfoPlistReader.main.bundleDisplayName)
-        case .deviceNotSupported:
+        case .slidingSyncNotAvailable:
             L10n.screenQrCodeLoginErrorSlidingSyncNotSupportedSubtitle(InfoPlistReader.main.bundleDisplayName)
+        case .deviceAlreadySignedIn:
+            L10n.screenQrCodeLoginErrorDeviceAlreadySignedInSubtitle
         case .unknown:
             L10n.screenQrCodeLoginUnknownErrorDescription
         }
     }
     
-    var body: some View {
-        FullscreenDialog {
-            header
-        } bottomContent: {
-            footer
+    var icon: KeyPath<CompoundIcons, Image> {
+        switch errorState {
+        case .noCameraPermission: \.takePhotoSolid
+        case .deviceAlreadySignedIn: \.checkCircleSolid
+        default: \.errorSolid
         }
-        .padding(.horizontal, 24)
+    }
+    
+    var iconStyle: BigIcon.Style {
+        switch errorState {
+        case .noCameraPermission: .defaultSolid
+        case .deviceAlreadySignedIn: .successSolid
+        default: .alertSolid
+        }
+    }
+    
+    var body: some View {
+        FullscreenDialog(topPadding: 24, horizontalPadding: 24) {
+            mainContent
+        } bottomContent: {
+            buttons
+        }
     }
     
     @ViewBuilder
-    private var header: some View {
+    private var mainContent: some View {
         switch errorState {
-        case .noCameraPermission:
-            VStack(spacing: 16) {
-                BigIcon(icon: \.takePhotoSolid, style: .defaultSolid)
-                
-                VStack(spacing: 8) {
-                    Text(title)
-                        .foregroundColor(.compound.textPrimary)
-                        .font(.compound.headingMDBold)
-                        .multilineTextAlignment(.center)
-                    
-                    Text(subtitle)
-                        .foregroundColor(.compound.textSecondary)
-                        .font(.compound.bodyMD)
-                        .multilineTextAlignment(.center)
-                }
-            }
         case .connectionNotSecure:
             VStack(spacing: 40) {
-                VStack(spacing: 16) {
-                    BigIcon(icon: \.errorSolid, style: .alertSolid)
-                    
-                    VStack(spacing: 8) {
-                        Text(title)
-                            .foregroundColor(.compound.textPrimary)
-                            .font(.compound.headingMDBold)
-                            .multilineTextAlignment(.center)
-                        
-                        Text(subtitle)
-                            .foregroundColor(.compound.textSecondary)
-                            .font(.compound.bodyMD)
-                            .multilineTextAlignment(.center)
-                    }
-                }
+                header
                 
                 VStack(spacing: 24) {
                     Text(L10n.screenQrCodeLoginConnectionNoteSecureStateListHeader)
@@ -117,49 +110,41 @@ struct QRCodeErrorView: View {
                 }
             }
         default:
-            simpleErrorStack
+            header
         }
     }
     
-    @ViewBuilder
-    private var simpleErrorStack: some View {
+    var header: some View {
+        TitleAndIcon(title: title,
+                     subtitle: subtitle,
+                     icon: icon,
+                     iconStyle: iconStyle)
+    }
+    
+    private var buttons: some View {
         VStack(spacing: 16) {
-            BigIcon(icon: \.errorSolid, style: .alertSolid)
-            
-            VStack(spacing: 8) {
-                Text(title)
-                    .foregroundColor(.compound.textPrimary)
-                    .font(.compound.headingMDBold)
-                    .multilineTextAlignment(.center)
+            switch errorState {
+            case .noCameraPermission:
+                Button(L10n.screenQrCodeLoginNoCameraPermissionButton) {
+                    action(.openSettings)
+                }
+                .buttonStyle(.compound(.primary))
                 
-                Text(subtitle)
-                    .foregroundColor(.compound.textSecondary)
-                    .font(.compound.bodyMD)
-                    .multilineTextAlignment(.center)
-            }
-        }
-    }
-    
-    @ViewBuilder
-    private var footer: some View {
-        switch errorState {
-        case .noCameraPermission:
-            Button(L10n.screenQrCodeLoginNoCameraPermissionButton) {
-                action(.openSettings)
-            }
-            .buttonStyle(.compound(.primary))
-        case .connectionNotSecure, .unknown, .expired, .declined, .deviceNotSupported:
-            Button(L10n.screenQrCodeLoginStartOverButton) {
-                action(.startScan)
-            }
-            .buttonStyle(.compound(.primary))
-        case .cancelled:
-            Button(L10n.actionTryAgain) {
-                action(.startScan)
-            }
-            .buttonStyle(.compound(.primary))
-        case .linkingNotSupported:
-            VStack(spacing: 16) {
+                Button(L10n.actionCancel) {
+                    action(.cancel)
+                }
+                .buttonStyle(.compound(.secondary))
+            case .connectionNotSecure, .unknown, .expired, .declined, .slidingSyncNotAvailable, .cancelled:
+                Button(L10n.actionTryAgain) {
+                    action(.startOver)
+                }
+                .buttonStyle(.compound(.primary))
+                
+                Button(L10n.actionCancel) {
+                    action(.cancel)
+                }
+                .buttonStyle(.compound(.secondary))
+            case .notSupported, .linkingNotSupported:
                 if canSignInManually {
                     Button(L10n.screenOnboardingSignInManually) {
                         action(.signInManually)
@@ -167,10 +152,15 @@ struct QRCodeErrorView: View {
                     .buttonStyle(.compound(.primary))
                 }
                 
-                Button(L10n.actionCancel) {
+                Button(L10n.actionDismiss) {
                     action(.cancel)
                 }
-                .buttonStyle(.compound(.tertiary))
+                .buttonStyle(.compound(canSignInManually ? .secondary : .primary))
+            case .deviceAlreadySignedIn:
+                Button(L10n.actionContinue) {
+                    action(.cancel)
+                }
+                .buttonStyle(.compound(.primary))
             }
         }
     }
@@ -180,42 +170,35 @@ struct QRCodeErrorView: View {
 
 struct QRCodeErrorView_Previews: PreviewProvider, TestablePreview {
     static var previews: some View {
-        QRCodeErrorViewSnapshot(errorState: .noCameraPermission, canSignInManually: false)
-            .previewDisplayName("No Camera Permission")
+        ForEach(QRCodeLoginState.ErrorState.allCases, id: \.self) { errorState in
+            ElementNavigationStack {
+                QRCodeErrorView(errorState: errorState, canSignInManually: true) { _ in }
+                    .toolbar(.visible, for: .navigationBar)
+            }
+            .previewDisplayName(errorState.previewDisplayName)
+        }
         
-        QRCodeErrorViewSnapshot(errorState: .connectionNotSecure, canSignInManually: false)
-            .previewDisplayName("Connection not secure")
-        
-        QRCodeErrorViewSnapshot(errorState: .linkingNotSupported, canSignInManually: true)
-            .previewDisplayName("Linking unsupported")
-        QRCodeErrorViewSnapshot(errorState: .linkingNotSupported, canSignInManually: false)
-            .previewDisplayName("Linking unsupported restricted flow")
-        
-        QRCodeErrorViewSnapshot(errorState: .cancelled, canSignInManually: false)
-            .previewDisplayName("Cancelled")
-        
-        QRCodeErrorViewSnapshot(errorState: .declined, canSignInManually: false)
-            .previewDisplayName("Declined")
-        
-        QRCodeErrorViewSnapshot(errorState: .expired, canSignInManually: false)
-            .previewDisplayName("Expired")
-        
-        QRCodeErrorViewSnapshot(errorState: .deviceNotSupported, canSignInManually: false)
-            .previewDisplayName("Device not supported")
-        
-        QRCodeErrorViewSnapshot(errorState: .unknown, canSignInManually: false)
-            .previewDisplayName("Unknown error")
+        ElementNavigationStack {
+            QRCodeErrorView(errorState: .linkingNotSupported, canSignInManually: false) { _ in }
+                .toolbar(.visible, for: .navigationBar)
+        }
+        .previewDisplayName("Linking unsupported restricted flow")
     }
 }
 
-private struct QRCodeErrorViewSnapshot: View {
-    let errorState: QRCodeLoginState.ErrorState
-    let canSignInManually: Bool
-    
-    var body: some View {
-        NavigationStack {
-            QRCodeErrorView(errorState: errorState, canSignInManually: canSignInManually) { _ in }
-                .toolbar(.visible, for: .navigationBar)
+private extension QRCodeLoginState.ErrorState {
+    var previewDisplayName: String {
+        switch self {
+        case .notSupported: "Not supported"
+        case .noCameraPermission: "No Camera Permission"
+        case .connectionNotSecure: "Connection not secure"
+        case .linkingNotSupported: "Linking unsupported"
+        case .cancelled: "Cancelled"
+        case .declined: "Declined"
+        case .expired: "Expired"
+        case .slidingSyncNotAvailable: "Sliding sync not available"
+        case .deviceAlreadySignedIn: "Device already signed in"
+        case .unknown: "Unknown error"
         }
     }
 }

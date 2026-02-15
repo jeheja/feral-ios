@@ -140,6 +140,7 @@ class MockScreen: Identifiable {
                                      deviceVerificationURL: appSettings.deviceVerificationURL,
                                      chatBackupDetailsURL: appSettings.chatBackupDetailsURL,
                                      identityPinningViolationDetailsURL: appSettings.identityPinningViolationDetailsURL,
+                                     historySharingDetailsURL: appSettings.historySharingDetailsURL,
                                      elementWebHosts: appSettings.elementWebHosts,
                                      accountProvisioningHost: appSettings.accountProvisioningHost,
                                      bugReportApplicationID: appSettings.bugReportApplicationID,
@@ -586,6 +587,7 @@ class MockScreen: Identifiable {
             appSettings.hasRunNotificationPermissionsOnboarding = true
             appSettings.analyticsConsentState = .optedOut
             appSettings.hasSeenSpacesAnnouncement = true
+            appSettings.spaceSettingsEnabled = true
             
             let roomSummaries: [RoomSummary] = if id == .userSessionSpacesFlow {
                 [[RoomSummary].mockSpaceInvites[0]] + .mockRooms
@@ -595,8 +597,10 @@ class MockScreen: Identifiable {
             let clientProxy = ClientProxyMock(.init(userID: "@mock:client.com",
                                                     deviceID: "MOCKCLIENT",
                                                     roomSummaryProvider: RoomSummaryProviderMock(.init(state: .loaded(roomSummaries))),
-                                                    spaceServiceConfiguration: .init(joinedSpaces: .mockSingleRoom),
-                                                    roomPreviews: [SpaceRoomProxyProtocol].mockSpaceList.map(RoomPreviewProxyMock.init)))
+                                                    spaceServiceConfiguration: .init(topLevelSpaces: .mockSpaceList.filter(\.isSpace) + .mockSingleRoom),
+                                                    roomPreviews: [SpaceServiceRoom].mockSpaceList.map(RoomPreviewProxyMock.init),
+                                                    defaultRoomMembers: .allMembersAsAdmin))
+            clientProxy.recentlyVisitedRoomsFilterReturnValue = .mockRooms
             
             // The tab bar remains hidden for the non-spaces tests as we don't supply any mock spaces.
             let spaceServiceProxy = SpaceServiceProxyMock(id == .userSessionSpacesFlow ? .populated : .init())
@@ -650,14 +654,16 @@ class MockScreen: Identifiable {
             return navigationStackCoordinator
         case .startChatFlow:
             let clientProxy = ClientProxyMock(.init(userID: "@mock:client.com"))
-            clientProxy.createRoomNameTopicIsRoomPrivateIsKnockingOnlyUserIDsAvatarURLAliasLocalPartReturnValue = .success("!new-room:client.com")
+            clientProxy.createRoomNameTopicAccessTypeIsSpaceUserIDsAvatarURLAliasLocalPartReturnValue =
+                .success("!new-room:client.com")
             clientProxy.roomForIdentifierClosure = { roomID in .joined(JoinedRoomProxyMock(.init(id: roomID, members: []))) }
             
             let userDiscoveryService = UserDiscoveryServiceMock()
             userDiscoveryService.searchProfilesWithReturnValue = .success([.mockBob, .mockBobby])
             
             let navigationStackCoordinator = NavigationStackCoordinator()
-            let flowCoordinator = StartChatFlowCoordinator(userDiscoveryService: userDiscoveryService,
+            let flowCoordinator = StartChatFlowCoordinator(entryPoint: .startChat,
+                                                           userDiscoveryService: userDiscoveryService,
                                                            navigationStackCoordinator: navigationStackCoordinator,
                                                            flowParameters: CommonFlowParameters(userSession: UserSessionMock(.init(clientProxy: clientProxy)),
                                                                                                 bugReportService: BugReportServiceMock(.init()),
@@ -735,9 +741,15 @@ class MockScreen: Identifiable {
             
             return navigationStackCoordinator
         case .linkNewDevice:
+            let linkMobileProgressSubject: CurrentValueSubject<LinkNewDeviceService.LinkMobileProgress, QRCodeLoginError> = .init(.qrReady(LinkNewDeviceServiceMock.mockQRCodeImage))
+            let linkNewDeviceService = LinkNewDeviceServiceMock(.init(linkMobileProgressPublisher: linkMobileProgressSubject.asCurrentValuePublisher()))
+            
+            let clientProxy = ClientProxyMock(.init())
+            clientProxy.linkNewDeviceServiceReturnValue = linkNewDeviceService
+            
             let navigationStackCoordinator = NavigationStackCoordinator()
             let flowCoordinator = LinkNewDeviceFlowCoordinator(navigationStackCoordinator: navigationStackCoordinator,
-                                                               flowParameters: CommonFlowParameters(userSession: UserSessionMock(.init()),
+                                                               flowParameters: CommonFlowParameters(userSession: UserSessionMock(.init(clientProxy: clientProxy)),
                                                                                                     bugReportService: BugReportServiceMock(.init()),
                                                                                                     elementCallService: ElementCallServiceMock(.init()),
                                                                                                     timelineControllerFactory: TimelineControllerFactoryMock(.init()),
@@ -791,21 +803,21 @@ class MockScreen: Identifiable {
                                                         mediaProvider: MediaProviderMock(configuration: .init()),
                                                         appSettings: ServiceLocator.shared.settings)
             
-            let flowCoordinator = ChatsFlowCoordinator(isNewLogin: false,
-                                                       navigationSplitCoordinator: navigationSplitCoordinator,
-                                                       flowParameters: CommonFlowParameters(userSession: UserSessionMock(.init(clientProxy: clientProxy)),
-                                                                                            bugReportService: BugReportServiceMock(.init()),
-                                                                                            elementCallService: ElementCallServiceMock(.init()),
-                                                                                            timelineControllerFactory: TimelineControllerFactoryMock(.init(timelineController: timelineController)),
-                                                                                            emojiProvider: EmojiProvider(appSettings: appSettings),
-                                                                                            linkMetadataProvider: LinkMetadataProvider(),
-                                                                                            appMediator: AppMediatorMock.default,
-                                                                                            appSettings: appSettings,
-                                                                                            appHooks: AppHooks(),
-                                                                                            analytics: ServiceLocator.shared.analytics,
-                                                                                            userIndicatorController: UserIndicatorControllerMock(),
-                                                                                            notificationManager: NotificationManagerMock(),
-                                                                                            stateMachineFactory: StateMachineFactory()))
+            let flowCoordinator = ChatsTabFlowCoordinator(isNewLogin: false,
+                                                          navigationSplitCoordinator: navigationSplitCoordinator,
+                                                          flowParameters: CommonFlowParameters(userSession: UserSessionMock(.init(clientProxy: clientProxy)),
+                                                                                               bugReportService: BugReportServiceMock(.init()),
+                                                                                               elementCallService: ElementCallServiceMock(.init()),
+                                                                                               timelineControllerFactory: TimelineControllerFactoryMock(.init(timelineController: timelineController)),
+                                                                                               emojiProvider: EmojiProvider(appSettings: appSettings),
+                                                                                               linkMetadataProvider: LinkMetadataProvider(),
+                                                                                               appMediator: AppMediatorMock.default,
+                                                                                               appSettings: appSettings,
+                                                                                               appHooks: AppHooks(),
+                                                                                               analytics: ServiceLocator.shared.analytics,
+                                                                                               userIndicatorController: UserIndicatorControllerMock(),
+                                                                                               notificationManager: NotificationManagerMock(),
+                                                                                               stateMachineFactory: StateMachineFactory()))
 
             flowCoordinator.start()
             

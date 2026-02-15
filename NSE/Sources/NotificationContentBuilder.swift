@@ -7,15 +7,15 @@
 //
 
 import Foundation
-import MatrixRustSDK
-import UserNotifications
-
 import Intents
+import MatrixRustSDK
 import SwiftUI
+import UserNotifications
 import Version
 
 struct NotificationContentBuilder {
     let messageEventStringBuilder: RoomMessageEventStringBuilder
+    let notificationSoundName: UNNotificationSoundName
     let userSession: NSEUserSessionProtocol
     
     /// Process the given notification item proxy
@@ -49,7 +49,7 @@ struct NotificationContentBuilder {
         notificationContent.threadIdentifier = threadIdentifier.replacingOccurrences(of: "@", with: "")
         
         MXLog.info("isNoisy: \(notificationItem.isNoisy)")
-        notificationContent.sound = notificationItem.isNoisy ? UNNotificationSound(named: UNNotificationSoundName(rawValue: "message.caf")) : nil
+        notificationContent.sound = notificationItem.isNoisy ? .init(named: notificationSoundName) : nil
         
         switch notificationItem.event {
         case .none:
@@ -59,8 +59,7 @@ struct NotificationContentBuilder {
                                  notificationItem: notificationItem,
                                  mediaProvider: mediaProvider)
         case .timeline(let event):
-            guard let eventType = try? event.eventType(),
-                  case let .messageLike(content) = eventType else {
+            guard case let .messageLike(messageContent) = try? event.content() else {
                 processEmpty(&notificationContent)
                 return
             }
@@ -69,7 +68,7 @@ struct NotificationContentBuilder {
                                      notificationItem: notificationItem,
                                      mediaProvider: mediaProvider)
             
-            switch content {
+            switch messageContent {
             case .roomMessage(let messageType, _):
                 await processRoomMessage(notificationContent: &notificationContent,
                                          notificationItem: notificationItem,
@@ -346,7 +345,7 @@ private struct NotificationIcon {
     }
     
     let mediaSource: MediaSourceProxy?
-    // Required as the key to set images for groups
+    /// Required as the key to set images for groups
     let groupInfo: GroupInfo?
     
     var shouldDisplayAsGroup: Bool {

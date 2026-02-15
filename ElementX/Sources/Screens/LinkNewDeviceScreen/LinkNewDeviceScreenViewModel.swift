@@ -22,7 +22,9 @@ class LinkNewDeviceScreenViewModel: LinkNewDeviceScreenViewModelType, LinkNewDev
     init(clientProxy: ClientProxyProtocol) {
         self.clientProxy = clientProxy
         
-        super.init(initialViewState: LinkNewDeviceScreenViewState())
+        let isQRCodeScanningSupported = !ProcessInfo.processInfo.isiOSAppOnMac
+        
+        super.init(initialViewState: LinkNewDeviceScreenViewState(showLinkDesktopComputerButton: isQRCodeScanningSupported))
         
         Task { await checkQRCodeLoginSupport() }
     }
@@ -37,6 +39,8 @@ class LinkNewDeviceScreenViewModel: LinkNewDeviceScreenViewModelType, LinkNewDev
             Task { await linkMobileDevice() }
         case .linkDesktopComputer:
             actionsSubject.send(.linkDesktopComputer)
+        case .errorAction(let action):
+            handleErrorAction(action)
         case .dismiss:
             actionsSubject.send(.dismiss)
         }
@@ -48,7 +52,7 @@ class LinkNewDeviceScreenViewModel: LinkNewDeviceScreenViewModelType, LinkNewDev
         if await clientProxy.isLoginWithQRCodeSupported {
             state.mode = .readyToLink(isGeneratingCode: false)
         } else {
-            state.mode = .notSupported
+            state.mode = .error(.notSupported)
         }
     }
     
@@ -57,7 +61,7 @@ class LinkNewDeviceScreenViewModel: LinkNewDeviceScreenViewModelType, LinkNewDev
         
         let linkNewDeviceService = clientProxy.linkNewDeviceService()
         
-        let progressPublisher = linkNewDeviceService.generateQRCode()
+        let progressPublisher = linkNewDeviceService.linkMobileDevice()
         
         do {
             _ = try await progressPublisher.values
@@ -71,8 +75,22 @@ class LinkNewDeviceScreenViewModel: LinkNewDeviceScreenViewModelType, LinkNewDev
             actionsSubject.send(.linkMobileDevice(progressPublisher))
             state.mode = .readyToLink(isGeneratingCode: false)
         } catch {
-            #warning("Needs some form of re-usable error handling, will handle with the next screen.")
-            state.mode = .notSupported
+            // This is hard to share a mapping from the QRCodeLoginError with the
+            // QRCodeLoginScreen given that some of those are scan errors…
+            state.mode = .error(.unknown)
+        }
+    }
+    
+    private func handleErrorAction(_ action: QRCodeErrorView.Action) {
+        switch action {
+        case .startOver:
+            // Reset to ready state to allow trying again.
+            state.mode = .readyToLink(isGeneratingCode: false)
+        case .openSettings, .signInManually:
+            MXLog.error("Unexpected error action: \(action)")
+            actionsSubject.send(.dismiss)
+        case .cancel:
+            actionsSubject.send(.dismiss)
         }
     }
 }

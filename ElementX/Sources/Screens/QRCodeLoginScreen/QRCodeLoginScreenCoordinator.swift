@@ -10,16 +10,35 @@ import Combine
 import SwiftUI
 
 struct QRCodeLoginScreenCoordinatorParameters {
-    let qrCodeLoginService: QRCodeLoginServiceProtocol
+    let mode: QRCodeLoginScreenMode
     let canSignInManually: Bool
     let orientationManager: OrientationManagerProtocol
     let appMediator: AppMediatorProtocol
 }
 
-enum QRCodeLoginScreenCoordinatorAction {
-    case cancel
+enum QRCodeLoginScreenCoordinatorAction: CustomStringConvertible {
+    /// Restart the flow.
+    ///
+    /// This action should only be sent when linking a new device. When logging in it
+    /// is handled internally within the screen.
+    case startOver
     case signInManually
-    case done(userSession: UserSessionProtocol)
+    case signedIn(userSession: UserSessionProtocol)
+    case requestOIDCAuthorisation(URL, OIDCAccountSettingsPresenter.Continuation)
+    case linkedDevice
+    /// Cancel the flow (dismiss the modal).
+    case cancel
+    
+    var description: String {
+        switch self {
+        case .startOver: "startOver"
+        case .signInManually: "signInManually"
+        case .signedIn: "signedIn"
+        case .requestOIDCAuthorisation: "requestOIDCAuthorisation"
+        case .linkedDevice: "linkedDevice"
+        case .cancel: "cancel"
+        }
+    }
 }
 
 final class QRCodeLoginScreenCoordinator: CoordinatorProtocol {
@@ -34,7 +53,7 @@ final class QRCodeLoginScreenCoordinator: CoordinatorProtocol {
     }
     
     init(parameters: QRCodeLoginScreenCoordinatorParameters) {
-        viewModel = QRCodeLoginScreenViewModel(qrCodeLoginService: parameters.qrCodeLoginService,
+        viewModel = QRCodeLoginScreenViewModel(mode: parameters.mode,
                                                canSignInManually: parameters.canSignInManually,
                                                appMediator: parameters.appMediator)
         orientationManager = parameters.orientationManager
@@ -47,11 +66,17 @@ final class QRCodeLoginScreenCoordinator: CoordinatorProtocol {
             guard let self else { return }
             switch action {
             case .signInManually:
-                self.actionsSubject.send(.signInManually)
+                actionsSubject.send(.signInManually)
+            case .startOver:
+                actionsSubject.send(.startOver)
+            case .signedIn(let userSession):
+                actionsSubject.send(.signedIn(userSession: userSession))
+            case .requestOIDCAuthorisation(let url, let continuation):
+                actionsSubject.send(.requestOIDCAuthorisation(url, continuation))
+            case .linkedDevice:
+                actionsSubject.send(.linkedDevice)
             case .cancel:
-                self.actionsSubject.send(.cancel)
-            case .done(let userSession):
-                self.actionsSubject.send(.done(userSession: userSession))
+                actionsSubject.send(.cancel)
             }
         }
         .store(in: &cancellables)

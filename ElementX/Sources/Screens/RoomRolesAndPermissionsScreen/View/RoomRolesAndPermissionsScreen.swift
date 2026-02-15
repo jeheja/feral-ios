@@ -27,7 +27,7 @@ struct RoomRolesAndPermissionsScreen: View {
     
     private var rolesSection: some View {
         Section {
-            if context.viewState.ownRole == .creator {
+            if context.viewState.ownPowerLevel.role == .creator {
                 ListRow(label: .default(title: L10n.screenRoomRolesAndPermissionsAdminsAndOwners,
                                         icon: \.admin),
                         details: administratorOrOwnersDetails,
@@ -53,7 +53,7 @@ struct RoomRolesAndPermissionsScreen: View {
                     })
                     .accessibilityIdentifier(A11yIdentifiers.roomRolesAndPermissionsScreen.moderators)
             
-            if context.viewState.ownRole != .creator {
+            if context.viewState.ownPowerLevel.role != .creator {
                 ListRow(label: .default(title: L10n.screenRoomRolesAndPermissionsChangeMyRole,
                                         icon: \.edit),
                         kind: .button {
@@ -128,12 +128,12 @@ struct RoomRolesAndPermissionsScreen_Previews: PreviewProvider, TestablePreview 
                                                                          userIndicatorController: UserIndicatorControllerMock(),
                                                                          analytics: ServiceLocator.shared.analytics)
     static var previews: some View {
-        NavigationStack {
+        ElementNavigationStack {
             RoomRolesAndPermissionsScreen(context: viewModel.context)
         }
         .previewDisplayName("Admin")
         
-        NavigationStack {
+        ElementNavigationStack {
             RoomRolesAndPermissionsScreen(context: creatorViewModel.context)
         }
         .previewDisplayName("Creator")

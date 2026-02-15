@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import MatrixRustSDK
 import OrderedCollections
 
 enum RoomScreenViewModelAction: Equatable {
@@ -80,6 +81,9 @@ struct RoomScreenViewState: BindableState {
             (canAcceptKnocks || canDeclineKnocks || canBan)
     }
     
+    /// If `enableKeyShareOnInvite` is set, determines the current history sharing state.
+    var roomHistorySharingState: RoomHistorySharingState?
+    
     var footerDetails: RoomScreenFooterViewDetails?
     
     var bindings = RoomScreenViewStateBindings()
@@ -88,6 +92,11 @@ struct RoomScreenViewState: BindableState {
 struct RoomScreenViewStateBindings {
     /// The view model used to present a QuickLook media preview.
     var mediaPreviewViewModel: TimelineMediaPreviewViewModel?
+    var alertInfo: AlertInfo<RoomScreenAlertType>?
+}
+
+enum RoomScreenAlertType {
+    case unknown
 }
 
 enum RoomScreenFooterViewAction {
@@ -190,9 +199,9 @@ enum PinnedEventsBannerState: Equatable {
         }
     }
     
-    // Note that if we are setting this value, this is definitely sent from the pinned events timeline
-    // so we can assume that the pinned events timeline is already loaded and we only need to set the
-    // selection for the loaded state
+    /// Note that if we are setting this value, this is definitely sent from the pinned events timeline
+    /// so we can assume that the pinned events timeline is already loaded and we only need to set the
+    /// selection for the loaded state
     mutating func setSelectedPinnedEventID(_ eventID: String) {
         switch self {
         case .loaded(var state):

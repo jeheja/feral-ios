@@ -6,9 +6,9 @@
 // Please see LICENSE files in the repository root for full details.
 //
 
-import XCTest
-
 @testable import ElementX
+import MatrixRustSDKMocks
+import XCTest
 
 @MainActor
 class ServerConfirmationScreenViewModelTests: XCTestCase {
@@ -18,7 +18,9 @@ class ServerConfirmationScreenViewModelTests: XCTestCase {
     var appSettings: AppSettings!
     
     var viewModel: ServerConfirmationScreenViewModel!
-    var context: ServerConfirmationScreenViewModel.Context { viewModel.context }
+    var context: ServerConfirmationScreenViewModel.Context {
+        viewModel.context
+    }
     
     override func setUp() {
         AppSettings.resetAllSettings()
@@ -324,6 +326,7 @@ class ServerConfirmationScreenViewModelTests: XCTestCase {
                                  deviceVerificationURL: appSettings.deviceVerificationURL,
                                  chatBackupDetailsURL: appSettings.chatBackupDetailsURL,
                                  identityPinningViolationDetailsURL: appSettings.identityPinningViolationDetailsURL,
+                                 historySharingDetailsURL: appSettings.historySharingDetailsURL,
                                  elementWebHosts: appSettings.elementWebHosts,
                                  accountProvisioningHost: appSettings.accountProvisioningHost,
                                  bugReportApplicationID: appSettings.bugReportApplicationID,

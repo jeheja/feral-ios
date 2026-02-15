@@ -91,6 +91,12 @@ struct TimelineItemMenuActionProvider {
 
         if item.isCopyable {
             actions.append(.copy)
+            
+            if !ProcessInfo.processInfo.isiOSAppOnMac {
+                // As of macOS 26.2, the sheet isn't presented, but it is easy enough
+                // to select some text and right click on Mac anyway so hide this one.
+                actions.append(.translate)
+            }
         } else if item.hasMediaCaption {
             actions.append(.copyCaption)
         }
@@ -153,6 +159,6 @@ struct TimelineItemMenuActionProvider {
     }
     
     private func canRedactItem(_ item: EventBasedTimelineItemProtocol) -> Bool {
-        item.isOutgoing ? canCurrentUserRedactSelf : canCurrentUserRedactOthers && !isDM
+        item.isOutgoing ? canCurrentUserRedactSelf : canCurrentUserRedactOthers
     }
 }

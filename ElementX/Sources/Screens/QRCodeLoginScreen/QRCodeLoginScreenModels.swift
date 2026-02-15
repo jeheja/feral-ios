@@ -6,73 +6,128 @@
 // Please see LICENSE files in the repository root for full details.
 //
 
-import Foundation
+import SwiftUI
 
-enum QRCodeLoginScreenViewModelAction {
-    case cancel
+enum QRCodeLoginScreenViewModelAction: CustomStringConvertible {
+    /// Restart the flow.
+    ///
+    /// This action should only be sent when linking a new device. When logging in it
+    /// is handled internally within the screen.
+    case startOver
     case signInManually
-    case done(userSession: UserSessionProtocol)
+    case signedIn(userSession: UserSessionProtocol)
+    case requestOIDCAuthorisation(URL, OIDCAccountSettingsPresenter.Continuation)
+    case linkedDevice
+    /// Cancel the flow (dismiss the modal).
+    case cancel
+    
+    var description: String {
+        switch self {
+        case .startOver: "startOver"
+        case .signInManually: "signInManually"
+        case .signedIn: "signedIn"
+        case .requestOIDCAuthorisation: "requestOIDCAuthorisation"
+        case .linkedDevice: "linkedDevice"
+        case .cancel: "cancel"
+        }
+    }
+}
+
+enum QRCodeLoginScreenMode {
+    /// Configures the screen to login this device by scanning a QR code.
+    case login(QRCodeLoginServiceProtocol)
+    /// Configures the screen to link another device by scanning a QR code.
+    case linkDesktop(LinkNewDeviceServiceProtocol)
+    /// Configures the screen to link another device by showing it a QR code.
+    case linkMobile(LinkNewDeviceService.LinkMobileProgressPublisher)
 }
 
 struct QRCodeLoginScreenViewState: BindableState {
-    var state: QRCodeLoginState = .initial
+    var state: QRCodeLoginState
+    let mode: QRCodeLoginScreenMode
     /// Whether or not it is possible for the screen to start the manual sign in flow. This was added to avoid
     /// having to handle server configuration when ``AppSettings.allowOtherAccountProviders`` is false.
     let canSignInManually: Bool
     
-    private static let initialStateListItem3AttributedText = {
-        let boldPlaceholder = "{bold}"
-        var finalString = AttributedString(L10n.screenQrCodeLoginInitialStateItem3(boldPlaceholder))
-        var boldString = AttributedString(L10n.screenQrCodeLoginInitialStateItem3Action)
-        boldString.bold()
-        finalString.replace(boldPlaceholder, with: boldString)
-        return finalString
-    }()
-    
-    let initialStateListItems = [
-        AttributedString(L10n.screenQrCodeLoginInitialStateItem1(InfoPlistReader.main.productionAppName)),
-        AttributedString(L10n.screenQrCodeLoginInitialStateItem2),
-        initialStateListItem3AttributedText,
-        AttributedString(L10n.screenQrCodeLoginInitialStateItem4)
-    ]
-    
-    let connectionNotSecureListItems = [
-        AttributedString(L10n.screenQrCodeLoginConnectionNoteSecureStateListItem1),
-        AttributedString(L10n.screenQrCodeLoginConnectionNoteSecureStateListItem2),
-        AttributedString(L10n.screenQrCodeLoginConnectionNoteSecureStateListItem3)
-    ]
-    
+    let instructions = QRCodeLoginScreenInstructions()
     var bindings = QRCodeLoginScreenViewStateBindings()
+    
+    var shouldDisplayCancelButton: Bool {
+        switch mode {
+        case .login:
+            switch state {
+            case .loginInstructions, .scan: true
+            case .error: false
+            case .linkDesktopInstructions, .displayCode, .displayQR, .confirmCode: false // Unreachable states.
+            }
+        case .linkDesktop, .linkMobile:
+            switch state {
+            case .displayCode, .confirmCode, .scan: true
+            case .linkDesktopInstructions, .displayQR, .error: false
+            case .loginInstructions: false // Unreachable state.
+            }
+        }
+    }
+
+    var shouldDisplayBackButton: Bool {
+        switch mode {
+        case .login:
+            false // Login is presented modally, never show the back button.
+        case .linkDesktop, .linkMobile:
+            switch state {
+            case .loginInstructions, .linkDesktopInstructions, .displayQR: true
+            case .displayCode, .confirmCode, .scan, .error: false
+            }
+        }
+    }
 }
 
 struct QRCodeLoginScreenViewStateBindings {
     var qrResult: Data?
+    var checkCodeInput = ""
 }
 
 enum QRCodeLoginScreenViewAction {
+    /// Cancel the entire flow (dismiss the modal).
     case cancel
     case startScan
+    case sendCheckCode
     case errorAction(QRCodeErrorView.Action)
 }
 
 enum QRCodeLoginState: Equatable {
-    /// Initial state where the user is informed how to perform the scan
-    case initial
-    /// The camera is scanning
+    /// Initial state where the user is informed how to login this device by scanning a QR code.
+    case loginInstructions
+    /// Initial state where the user is informed how to link another device by scanning it's QR code.
+    case linkDesktopInstructions
+    
+    /// The camera is scanning a QR code.
     case scan(ScanningState)
-    /// Codes are being shown
-    case displayCode(QRCodeLoginDisplayCodeState)
+    /// Codes are being shown.
+    case displayCode(DisplayCodeState)
+    
+    /// Initial state where the user can link another device using the shown QR code.
+    case displayQR(UIImage)
+    /// The user needs to enter the two digit code to confirm the channel is secure
+    case confirmCode(CheckCodeState)
+    
     /// Any full screen error state
     case error(ErrorState)
     
-    enum ErrorState: Equatable {
+    enum ErrorState: Equatable, CaseIterable {
+        /// The account provider doesn't support the use of QR codes.
+        case notSupported
         case noCameraPermission
         case connectionNotSecure
         case cancelled
         case declined
         case expired
+        /// The other device does not support linking Element X by QR code.
         case linkingNotSupported
-        case deviceNotSupported
+        /// Login cannot be continued due to a lack of Sliding Sync.
+        case slidingSyncNotAvailable
+        /// Expected a QR code for a new device, however the processed code belongs to a device that is already signed in.
+        case deviceAlreadySignedIn
         case unknown
     }
     
@@ -91,8 +146,6 @@ enum QRCodeLoginState: Equatable {
             case notAllowed(scannedProvider: String, allowedProviders: [String])
             /// The QR code has been processed but it belongs to a device not signed in.
             case deviceNotSignedIn
-            /// Expected a QR code for a new device, however the processed code belongs to a device that is already signed in.
-            case deviceAlreadySignedIn
             
             var title: String {
                 switch self {
@@ -102,8 +155,6 @@ enum QRCodeLoginState: Equatable {
                     L10n.screenChangeServerErrorUnauthorizedHomeserverTitle(scannedProvider)
                 case .deviceNotSignedIn:
                     L10n.screenQrCodeLoginDeviceNotSignedInScanStateSubtitle
-                case .deviceAlreadySignedIn:
-                    L10n.screenQrCodeLoginDeviceNotSignedInScanStateSubtitle // FIXME: Update string
                 }
             }
             
@@ -115,23 +166,35 @@ enum QRCodeLoginState: Equatable {
                     L10n.screenChangeServerErrorUnauthorizedHomeserverContent(allowedProviders.formatted(.list(type: .and)))
                 case .deviceNotSignedIn:
                     L10n.screenQrCodeLoginDeviceNotSignedInScanStateDescription
-                case .deviceAlreadySignedIn:
-                    L10n.screenQrCodeLoginDeviceNotSignedInScanStateDescription // FIXME: Update string
                 }
             }
         }
     }
     
-    enum QRCodeLoginDisplayCodeState: Equatable {
+    enum DisplayCodeState: Equatable {
         case deviceCode(String)
         case verificationCode(String)
         
         var code: String {
             switch self {
-            case .deviceCode(let code):
-                return code
-            case .verificationCode(let code):
-                return code
+            case .deviceCode(let code): code
+            case .verificationCode(let code): code
+            }
+        }
+    }
+    
+    enum CheckCodeState: Equatable {
+        /// The user needs to input the confirmation code.
+        case inputCode(CheckCodeSenderProxy)
+        /// The code supplied by the user didn't pass local validation.
+        case invalidCode
+        /// The code is being sent.
+        case sendingCode
+        
+        var isSending: Bool {
+            switch self {
+            case .sendingCode: true
+            default: false
             }
         }
     }
@@ -143,17 +206,65 @@ enum QRCodeLoginState: Equatable {
         }
     }
     
+    var isDisplayQR: Bool {
+        switch self {
+        case .displayQR: true
+        default: false
+        }
+    }
+    
     var isError: Bool {
         switch self {
         case .error, .scan(.scanFailed): true
         default: false
         }
     }
+}
+
+struct QRCodeLoginScreenInstructions {
+    private static let loginItem3 = {
+        let boldPlaceholder = "{bold}"
+        var finalString = AttributedString(L10n.screenQrCodeLoginInitialStateItem3(boldPlaceholder))
+        var boldString = AttributedString(L10n.screenQrCodeLoginInitialStateItem3Action)
+        boldString.bold()
+        finalString.replace(boldPlaceholder, with: boldString)
+        return finalString
+    }()
     
-    var shouldDisplayCancelButton: Bool {
-        switch self {
-        case .initial, .scan, .error(.noCameraPermission): true
-        default: false
-        }
-    }
+    let loginItems = [
+        AttributedString(L10n.screenQrCodeLoginInitialStateItem1(InfoPlistReader.main.productionAppName)), // "Open Element on another device"
+        AttributedString(L10n.screenQrCodeLoginInitialStateItem2), // "Click or tap on your avatar"
+        loginItem3,
+        AttributedString(L10n.screenQrCodeLoginInitialStateItem4)
+    ]
+    
+    private static let linkDesktopItem2 = {
+        let boldPlaceholder = "{bold}"
+        var finalString = AttributedString(L10n.screenLinkNewDeviceMobileStep2(boldPlaceholder))
+        var boldString = AttributedString(L10n.screenLinkNewDeviceMobileStep2Action)
+        boldString.bold()
+        finalString.replace(boldPlaceholder, with: boldString)
+        return finalString
+    }()
+    
+    let linkDesktopItems = [
+        AttributedString(L10n.screenLinkNewDeviceDesktopStep1(InfoPlistReader.main.productionAppName)),
+        linkDesktopItem2,
+        AttributedString(L10n.screenLinkNewDeviceDesktopStep3)
+    ]
+    
+    private static let linkMobile = {
+        let boldPlaceholder = "{bold}"
+        var finalString = AttributedString(L10n.screenLinkNewDeviceMobileStep2(boldPlaceholder))
+        var boldString = AttributedString(L10n.screenLinkNewDeviceMobileStep2Action)
+        boldString.bold()
+        finalString.replace(boldPlaceholder, with: boldString)
+        return finalString
+    }()
+    
+    let linkMobileItems = [
+        AttributedString(L10n.screenLinkNewDeviceMobileStep1(InfoPlistReader.main.productionAppName)),
+        linkMobile,
+        AttributedString(L10n.screenLinkNewDeviceMobileStep3)
+    ]
 }

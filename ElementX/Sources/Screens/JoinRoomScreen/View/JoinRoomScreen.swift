@@ -56,7 +56,6 @@ struct JoinRoomScreen: View {
         }
     }
     
-    @ViewBuilder
     private var defaultView: some View {
         VStack(spacing: 16) {
             RoomAvatarImage(avatar: context.viewState.avatar ?? .room(id: "", name: nil, avatarURL: nil),
@@ -140,7 +139,6 @@ struct JoinRoomScreen: View {
         }
     }
     
-    @ViewBuilder
     private var knockedView: some View {
         VStack(spacing: 16) {
             BigIcon(icon: \.checkCircleSolid, style: .successSolid)
@@ -157,7 +155,6 @@ struct JoinRoomScreen: View {
         }
     }
         
-    @ViewBuilder
     private var knockMessage: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 0) {
@@ -320,7 +317,9 @@ struct JoinRoomScreen: View {
                 if let avatar = context.viewState.avatar {
                     RoomHeaderView(roomName: context.viewState.title,
                                    roomAvatar: avatar,
-                                   mediaProvider: context.mediaProvider)
+                                   mediaProvider: context.mediaProvider) {
+                        // There is no action but the iOS 26 designs have it looking like a button.
+                    }
                 }
             }
         }
@@ -445,7 +444,7 @@ struct JoinRoomScreenPreviewWrapper: Identifiable {
         }
         
         let source: JoinRoomScreenSource = if isSpace {
-            .space(SpaceRoomProxyMock(mode: mode))
+            .space(SpaceServiceRoom.mock(joinRoomScreenMode: mode))
         } else {
             .generic(roomID: "1", via: [])
         }
@@ -486,7 +485,7 @@ struct JoinRoomScreenPreviewWrapper: Identifiable {
         let previewDisplayName = customPreviewName ?? previewDisplayName
         let previewDisplayNameSuffix = isSpace ? " Space" : ""
         if mode == .forbidden {
-            NavigationStack {
+            ElementNavigationStack {
                 JoinRoomScreen(context: viewModel.context)
             }
             .snapshotPreferences(expect: viewModel.context.$viewState.map { state in
@@ -497,7 +496,7 @@ struct JoinRoomScreenPreviewWrapper: Identifiable {
             }
             .previewDisplayName(previewDisplayName + previewDisplayNameSuffix)
         } else {
-            NavigationStack {
+            ElementNavigationStack {
                 JoinRoomScreen(context: viewModel.context)
             }
             .snapshotPreferences(expect: viewModel.context.$viewState.map { state in

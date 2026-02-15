@@ -13,6 +13,10 @@ extension PostHogConfig {
         let postHogConfiguration = PostHogConfig(apiKey: analyticsConfiguration.apiKey, host: analyticsConfiguration.host)
         // We capture screens manually
         postHogConfiguration.captureScreenViews = false
+        postHogConfiguration.surveys = false
+        
+        // We only want to track the events provided by the AnalyticsEvents package
+        postHogConfiguration.enableSwizzling = false
         
         return postHogConfiguration
     }

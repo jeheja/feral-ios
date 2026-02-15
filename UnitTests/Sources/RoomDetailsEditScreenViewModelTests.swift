@@ -6,10 +6,9 @@
 // Please see LICENSE files in the repository root for full details.
 //
 
+@testable import ElementX
 import MatrixRustSDK
 import XCTest
-
-@testable import ElementX
 
 @MainActor
 class RoomDetailsEditScreenViewModelTests: XCTestCase {
@@ -98,7 +97,7 @@ class RoomDetailsEditScreenViewModelTests: XCTestCase {
         XCTAssertFalse(context.viewState.canSave)
         XCTAssertNil(context.alertInfo)
         
-        var deferred = deferFulfillment(viewModel.actions) { $0 == .cancel }
+        let deferred = deferFulfillment(viewModel.actions) { $0 == .cancel }
         context.send(viewAction: .cancel)
         try await deferred.fulfill()
         XCTAssertNil(context.alertInfo)
@@ -134,11 +133,11 @@ class RoomDetailsEditScreenViewModelTests: XCTestCase {
         try await deferred.fulfill()
     }
     
-    func testErrorShownOnFailedFetchOfMedia() async throws {
+    func testErrorShownOnFailedFetchOfMedia() async {
         setupViewModel(roomProxyConfiguration: .init(name: "Some room", members: [.mockMeAdmin]))
         viewModel.didSelectMediaUrl(url: .picturesDirectory)
         try? await Task.sleep(for: .milliseconds(100))
-        XCTAssertNotNil(userIndicatorController.alertInfo)
+        XCTAssertNotNil(context.alertInfo)
     }
     
     func testDeleteAvatar() {

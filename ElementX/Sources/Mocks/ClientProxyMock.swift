@@ -8,6 +8,7 @@
 
 import Combine
 import Foundation
+import MatrixRustSDKMocks
 
 struct ClientProxyMockConfiguration {
     var homeserver = ""
@@ -17,6 +18,7 @@ struct ClientProxyMockConfiguration {
     var roomSummaryProvider: RoomSummaryProviderProtocol = RoomSummaryProviderMock(.init())
     var spaceServiceConfiguration: SpaceServiceProxyMock.Configuration = .init()
     var roomPreviews: [RoomPreviewProxyProtocol]?
+    var defaultRoomMembers: [RoomMemberProxyMock] = .allMembers
     var roomDirectorySearchProxy: RoomDirectorySearchProxyProtocol?
     var overrides = Overrides()
     
@@ -72,7 +74,7 @@ extension ClientProxyMock {
         canDeactivateAccount = false
         directRoomForUserIDReturnValue = .failure(.sdkError(ClientProxyMockError.generic))
         createDirectRoomWithExpectedRoomNameReturnValue = .failure(.sdkError(ClientProxyMockError.generic))
-        createRoomNameTopicIsRoomPrivateIsKnockingOnlyUserIDsAvatarURLAliasLocalPartReturnValue = .failure(.sdkError(ClientProxyMockError.generic))
+        createRoomNameTopicAccessTypeIsSpaceUserIDsAvatarURLAliasLocalPartReturnValue = .failure(.sdkError(ClientProxyMockError.generic))
         canJoinRoomWithReturnValue = true
         joinRoomViaClosure = { roomID, _ in
             configuration.overrides.joinedRoomIDs.insert(roomID)
@@ -92,7 +94,7 @@ extension ClientProxyMock {
         unignoreUserReturnValue = .success(())
         
         trackRecentlyVisitedRoomReturnValue = .success(())
-        recentlyVisitedRoomsReturnValue = .success([])
+        recentlyVisitedRoomsFilterReturnValue = []
         recentConversationCounterpartsReturnValue = []
         
         let mediaLoader = MediaLoaderMock()
@@ -105,6 +107,7 @@ extension ClientProxyMock {
         resetIdentityReturnValue = .success(IdentityResetHandleSDKMock(.init()))
         
         spaceService = SpaceServiceProxyMock(configuration.spaceServiceConfiguration)
+        linkNewDeviceServiceReturnValue = LinkNewDeviceServiceMock(.init())
         
         roomForIdentifierClosure = { [weak self] identifier in
             if let room = self?.roomSummaryProvider.roomListPublisher.value.first(where: { $0.id == identifier }) {
@@ -117,12 +120,12 @@ extension ClientProxyMock {
                     let roomProxy = await KnockedRoomProxyMock(.init(id: room.id, name: room.name))
                     return .knocked(roomProxy)
                 default:
-                    let roomProxy = await JoinedRoomProxyMock(.init(id: room.id, name: room.name, isSpace: room.isSpace))
+                    let roomProxy = await JoinedRoomProxyMock(.init(id: room.id, name: room.name, isSpace: room.isSpace, members: configuration.defaultRoomMembers))
                     roomProxy.loadOrFetchEventDetailsForReturnValue = .success(TimelineEventSDKMock())
                     return .joined(roomProxy)
                 }
-            } else if let spaceRoomProxy = configuration.spaceServiceConfiguration.joinedSpaces.first(where: { $0.id == identifier }) {
-                let roomProxy = await JoinedRoomProxyMock(.init(id: spaceRoomProxy.id, name: spaceRoomProxy.name, isSpace: spaceRoomProxy.isSpace))
+            } else if let spaceServiceRoom = configuration.spaceServiceConfiguration.topLevelSpaces.first(where: { $0.id == identifier }) {
+                let roomProxy = await JoinedRoomProxyMock(.init(id: spaceServiceRoom.id, name: spaceServiceRoom.name, isSpace: spaceServiceRoom.isSpace, members: configuration.defaultRoomMembers))
                 roomProxy.loadOrFetchEventDetailsForReturnValue = .success(TimelineEventSDKMock())
                 return .joined(roomProxy)
             } else {
@@ -150,5 +153,7 @@ extension ClientProxyMock {
         underlyingHideInviteAvatarsPublisher = CurrentValueSubject<Bool, Never>(configuration.hideInviteAvatars).asCurrentValuePublisher()
         
         underlyingMaxMediaUploadSize = .success(configuration.maxMediaUploadSize)
+        
+        storeSizesReturnValue = .success(.init(cryptoStore: 1, stateStore: 9, eventCacheStore: 8, mediaStore: 6))
     }
 }

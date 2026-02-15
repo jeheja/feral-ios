@@ -6,10 +6,9 @@
 //
 
 import Dynamic
+@testable import ElementX
 import MatrixRustSDK
 import XCTest
-
-@testable import ElementX
 
 final class NotificationContentBuilderTests: XCTestCase {
     var notificationContentBuilder: NotificationContentBuilder!
@@ -22,6 +21,7 @@ final class NotificationContentBuilderTests: XCTestCase {
                                                           destination: .notification)
         mediaProvider = MediaProviderMock(configuration: .init())
         notificationContentBuilder = NotificationContentBuilder(messageEventStringBuilder: stringBuilder,
+                                                                notificationSoundName: UNNotificationSoundName("message.caf"),
                                                                 userSession: NSEUserSessionMock(.init()))
     }
     

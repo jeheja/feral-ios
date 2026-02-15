@@ -48,8 +48,8 @@ struct TimelineItemMenuReaction: Hashable {
     let key: String
     let symbol: SFSymbol
     
-    // Frequently used emojis on the all use the same .heart SFSymbol.
-    // Override equatable so we can remove duplicates.
+    /// Frequently used emojis on the all use the same .heart SFSymbol.
+    /// Override equatable so we can remove duplicates.
     static func == (lhs: TimelineItemMenuReaction, rhs: TimelineItemMenuReaction) -> Bool {
         lhs.key == rhs.key
     }
@@ -57,6 +57,7 @@ struct TimelineItemMenuReaction: Hashable {
 
 enum TimelineItemMenuAction: Identifiable, Hashable {
     case copy
+    case translate
     case copyCaption
     case edit
     case addCaption
@@ -79,7 +80,9 @@ enum TimelineItemMenuAction: Identifiable, Hashable {
     case share
     case save
     
-    var id: Self { self }
+    var id: Self {
+        self
+    }
     
     /// Whether the item should cancel a reply/edit occurring in the composer.
     var switchToDefaultComposer: Bool {
@@ -145,6 +148,8 @@ enum TimelineItemMenuAction: Identifiable, Hashable {
         switch self {
         case .copy:
             Label(L10n.actionCopyText, icon: \.copy)
+        case .translate:
+            Label(L10n.actionTranslate, icon: \.translate)
         case .copyCaption:
             Label(L10n.actionCopyCaption, icon: \.copy)
         case .edit:

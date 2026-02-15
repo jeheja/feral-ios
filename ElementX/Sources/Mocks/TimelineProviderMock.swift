@@ -9,12 +9,13 @@
 import Combine
 import Foundation
 import MatrixRustSDK
+import MatrixRustSDKMocks
 
 @MainActor
 class AutoUpdatingTimelineItemProviderMock: TimelineItemProvider {
     static var timelineListener: TimelineListener?
     
-    private let innerPaginationStatePublisher: PassthroughSubject<PaginationState, Never>
+    private let innerPaginationStatePublisher: PassthroughSubject<TimelinePaginationState, Never>
     
     init() {
         innerPaginationStatePublisher = .init()

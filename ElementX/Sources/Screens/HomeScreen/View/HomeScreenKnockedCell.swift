@@ -65,7 +65,6 @@ struct HomeScreenKnockedCell: View {
         }
     }
     
-    @ViewBuilder
     private var textualContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
@@ -96,6 +95,10 @@ struct HomeScreenKnockedCell: View {
         room.canonicalAlias
     }
 }
+
+// MARK: - Previews
+
+import MatrixRustSDKMocks
 
 struct HomeScreenKnockedCell_Previews: PreviewProvider, TestablePreview {
     static var previews: some View {

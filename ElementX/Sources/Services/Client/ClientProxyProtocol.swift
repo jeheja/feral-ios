@@ -48,6 +48,23 @@ enum SlidingSyncConstants {
     static let maximumVisibleRangeSize = 30
 }
 
+enum CreateRoomAccessType: Equatable {
+    case `public`
+    case spaceMembers(spaceID: String)
+    case askToJoinWithSpaceMembers(spaceID: String)
+    case askToJoin
+    case `private`
+    
+    var isVisibilityPrivate: Bool {
+        switch self {
+        case .private, .spaceMembers, .askToJoinWithSpaceMembers:
+            true
+        case .public, .askToJoin:
+            false
+        }
+    }
+}
+
 /// This struct represents the configuration that we are using to register the application through Pusher to Sygnal
 /// using the Matrix Rust SDK, more info here:
 /// https://github.com/matrix-org/sygnal
@@ -66,7 +83,7 @@ enum SessionVerificationState {
     case unverified
 }
 
-// The `Decodable` conformance is just for the purpose of migration
+/// The `Decodable` conformance is just for the purpose of migration
 enum TimelineMediaVisibility: Decodable {
     case always
     case privateOnly
@@ -156,8 +173,8 @@ protocol ClientProxyProtocol: AnyObject {
     
     func createRoom(name: String,
                     topic: String?,
-                    isRoomPrivate: Bool,
-                    isKnockingOnly: Bool,
+                    accessType: CreateRoomAccessType,
+                    isSpace: Bool,
                     userIDs: [String],
                     avatarURL: URL?,
                     aliasLocalPart: String?) async -> Result<String, ClientProxyError>
@@ -195,7 +212,7 @@ protocol ClientProxyProtocol: AnyObject {
     
     func removeUserAvatar() async -> Result<Void, ClientProxyError>
     
-    func linkNewDeviceService() -> LinkNewDeviceService
+    func linkNewDeviceService() -> LinkNewDeviceServiceProtocol
     
     func deactivateAccount(password: String?, eraseData: Bool) async -> Result<Void, ClientProxyError>
     
@@ -215,6 +232,10 @@ protocol ClientProxyProtocol: AnyObject {
     
     @discardableResult func clearCaches() async -> Result<Void, ClientProxyError>
     
+    @discardableResult func optimizeStores() async -> Result<Void, ClientProxyError>
+    
+    func storeSizes() async -> Result<StoreSizes, ClientProxyError>
+    
     func fetchMediaPreviewConfiguration() async -> Result<MediaPreviewConfig?, ClientProxyError>
 
     // MARK: - Ignored users
@@ -227,8 +248,7 @@ protocol ClientProxyProtocol: AnyObject {
     
     func trackRecentlyVisitedRoom(_ roomID: String) async -> Result<Void, ClientProxyError>
     
-    func recentlyVisitedRooms() async -> Result<[String], ClientProxyError>
-    
+    func recentlyVisitedRooms(filter: (JoinedRoomProxyProtocol) -> Bool) async -> [JoinedRoomProxyProtocol]
     func recentConversationCounterparts() async -> [UserProfileProxy]
     
     // MARK: - Crypto

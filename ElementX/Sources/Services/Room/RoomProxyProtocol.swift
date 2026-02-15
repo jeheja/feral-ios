@@ -196,13 +196,20 @@ protocol JoinedRoomProxyProtocol: RoomProxyProtocol {
 
 extension JoinedRoomProxyProtocol {
     var details: RoomDetails {
-        RoomDetails(id: id,
-                    name: infoPublisher.value.displayName,
-                    avatar: infoPublisher.value.avatar,
-                    canonicalAlias: infoPublisher.value.canonicalAlias,
-                    isEncrypted: infoPublisher.value.isEncrypted,
-                    isPublic: !(infoPublisher.value.isPrivate ?? false),
-                    isDirect: infoPublisher.value.isDirect)
+        let historySharingState: RoomHistorySharingState? = if infoPublisher.value.isEncrypted {
+            infoPublisher.value.historySharingState
+        } else {
+            nil
+        }
+        
+        return RoomDetails(id: id,
+                           name: infoPublisher.value.displayName,
+                           avatar: infoPublisher.value.avatar,
+                           canonicalAlias: infoPublisher.value.canonicalAlias,
+                           isEncrypted: infoPublisher.value.isEncrypted,
+                           isPublic: !(infoPublisher.value.isPrivate ?? false),
+                           isDirect: infoPublisher.value.isDirect,
+                           historySharingState: historySharingState)
     }
     
     var isDirectOneToOneRoom: Bool {
@@ -214,7 +221,7 @@ extension JoinedRoomProxyProtocol {
         return membersPublisher.value
     }
     
-    // This is a horrible workaround for not having any server names available when using tombstone links with v12 room IDs.
+    /// This is a horrible workaround for not having any server names available when using tombstone links with v12 room IDs.
     func knownServerNames(maxCount: Int) -> any Sequence<String> {
         membersPublisher.value
             .prefix(1000) // No need to go crazy here…

@@ -37,6 +37,7 @@ class NotificationHandler {
                                                                destination: .notification)
         
         notificationContentBuilder = NotificationContentBuilder(messageEventStringBuilder: eventStringBuilder,
+                                                                notificationSoundName: settings.notificationSoundName.publisher.value,
                                                                 userSession: userSession)
     }
     
@@ -98,9 +99,9 @@ class NotificationHandler {
             return .shouldDisplay
         }
         
-        switch try? event.eventType() {
-        case .messageLike(let content):
-            switch content {
+        switch try? event.content() {
+        case .messageLike(let messageContent):
+            switch messageContent {
             case .poll,
                  .roomEncrypted,
                  .sticker:

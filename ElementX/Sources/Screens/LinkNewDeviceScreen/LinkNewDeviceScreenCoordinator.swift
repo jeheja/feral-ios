@@ -9,17 +9,19 @@ import Combine
 import SwiftUI
 
 enum LinkNewDeviceScreenCoordinatorAction {
-    case linkMobileDevice(LinkNewDeviceService.GenerateProgressPublisher)
+    case linkMobileDevice(LinkNewDeviceService.LinkMobileProgressPublisher)
     case linkDesktopComputer
     case dismiss
 }
 
 struct LinkNewDeviceScreenCoordinatorParameters {
     let clientProxy: ClientProxyProtocol
+    let orientationManager: OrientationManagerProtocol
 }
 
 final class LinkNewDeviceScreenCoordinator: CoordinatorProtocol {
     private let viewModel: LinkNewDeviceScreenViewModelProtocol
+    private let orientationManager: OrientationManagerProtocol
     
     private var cancellables = Set<AnyCancellable>()
  
@@ -30,6 +32,7 @@ final class LinkNewDeviceScreenCoordinator: CoordinatorProtocol {
     
     init(parameters: LinkNewDeviceScreenCoordinatorParameters) {
         viewModel = LinkNewDeviceScreenViewModel(clientProxy: parameters.clientProxy)
+        orientationManager = parameters.orientationManager
     }
     
     func start() {
@@ -47,6 +50,13 @@ final class LinkNewDeviceScreenCoordinator: CoordinatorProtocol {
             }
         }
         .store(in: &cancellables)
+        
+        orientationManager.setOrientation(.portrait)
+        orientationManager.lockOrientation(.portrait)
+    }
+    
+    func stop() {
+        orientationManager.lockOrientation(.all)
     }
         
     func toPresentable() -> AnyView {

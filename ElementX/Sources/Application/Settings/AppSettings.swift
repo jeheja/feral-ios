@@ -13,8 +13,11 @@ import EmbeddedElementCall
 import Foundation
 import SwiftUI
 
-// Common settings between app and NSE
-protocol CommonSettingsProtocol {
+/// Common settings between app and NSE
+protocol CommonSettingsProtocol: AnyObject {
+    var lastNotificationBootTime: TimeInterval? { get set }
+    var notificationSoundName: RemotePreference<UNNotificationSoundName> { get }
+    
     var logLevel: LogLevel { get }
     var traceLogPacks: Set<TraceLogPack> { get }
     var bugReportRageshakeURL: RemotePreference<RageshakeConfiguration> { get }
@@ -23,6 +26,12 @@ protocol CommonSettingsProtocol {
     var enableKeyShareOnInvite: Bool { get }
     var threadsEnabled: Bool { get }
     var hideQuietNotificationAlerts: Bool { get }
+}
+
+enum AppBuildType {
+    case debug
+    case nightly
+    case release
 }
 
 /// Store Element specific app settings.
@@ -45,6 +54,7 @@ final class AppSettings {
         case enableNotifications
         case enableInAppNotifications
         case pusherProfileTag
+        case lastNotificationBootTime
         case logLevel
         case traceLogPacks
         case viewSourceEnabled
@@ -64,9 +74,13 @@ final class AppSettings {
         case threadsEnabled
         case developerOptionsEnabled
         case linkPreviewsEnabled
-        case spaceSettingsEnabled
         case focusEventOnNotificationTap
         case linkNewDeviceEnabled
+        
+        // Spaces
+        case spaceFiltersEnabled
+        case spaceSettingsEnabled
+        case createSpaceEnabled
         
         // Doug's tweaks 🔧
         case hideUnreadMessagesBadge
@@ -78,16 +92,19 @@ final class AppSettings {
     /// UserDefaults to be used on reads and writes.
     private static var store: UserDefaults! = UserDefaults(suiteName: suiteName)
     
-    /// Whether or not the app is a development build that isn't in production.
-    static var isDevelopmentBuild: Bool = {
+    static var appBuildType: AppBuildType {
         #if DEBUG
-        true
+        return .debug
         #else
-        let apps = ["io.element.elementx.nightly", "io.element.elementx.pr"]
-        return apps.contains(InfoPlistReader.main.baseBundleIdentifier)
+        switch InfoPlistReader.main.baseBundleIdentifier {
+        case "io.element.elementx.nightly":
+            return .nightly
+        default:
+            return .release
+        }
         #endif
-    }()
-        
+    }
+    
     static func resetAllSettings() {
         MXLog.warning("Resetting the AppSettings.")
         store.removePersistentDomain(forName: suiteName)
@@ -125,6 +142,7 @@ final class AppSettings {
                   deviceVerificationURL: URL,
                   chatBackupDetailsURL: URL,
                   identityPinningViolationDetailsURL: URL,
+                  historySharingDetailsURL: URL,
                   elementWebHosts: [String],
                   accountProvisioningHost: String,
                   bugReportApplicationID: String,
@@ -144,6 +162,7 @@ final class AppSettings {
         self.deviceVerificationURL = deviceVerificationURL
         self.chatBackupDetailsURL = chatBackupDetailsURL
         self.identityPinningViolationDetailsURL = identityPinningViolationDetailsURL
+        self.historySharingDetailsURL = historySharingDetailsURL
         self.elementWebHosts = elementWebHosts
         self.accountProvisioningHost = accountProvisioningHost
         self.bugReportApplicationID = bugReportApplicationID
@@ -203,6 +222,9 @@ final class AppSettings {
     private(set) var chatBackupDetailsURL: URL = "https://feralisme.fr/help#chat-backup"
     /// A URL where users can go read more about identity pinning violations
     private(set) var identityPinningViolationDetailsURL: URL = "https://feralisme.fr/help#identity-pinning"
+    /// A URL describing how history sharing works
+    private(set) var historySharingDetailsURL: URL = "https://feralisme.fr/help#history-sharing"
+
     /// Any domains that Feral web may be hosted on - used for handling links.
     private(set) var elementWebHosts = ["app.feralisme.fr", "web.feralisme.fr", "feralisme.fr"]
     /// The domain that account provisioning links will be hosted on - used for handling the links.
@@ -260,7 +282,9 @@ final class AppSettings {
     }
     
     private(set) var pushGatewayBaseURL: URL = "https://feralisme.fr"
-    var pushGatewayNotifyEndpoint: URL { pushGatewayBaseURL.appending(path: "_matrix/push/v1/notify") }
+    var pushGatewayNotifyEndpoint: URL {
+        pushGatewayBaseURL.appending(path: "_matrix/push/v1/notify")
+    }
     
     @UserPreference(key: UserDefaultsKeys.enableNotifications, defaultValue: true, storageType: .userDefaults(store))
     var enableNotifications
@@ -274,6 +298,13 @@ final class AppSettings {
     /// Tag describing which set of device specific rules a pusher executes.
     @UserPreference(key: UserDefaultsKeys.pusherProfileTag, storageType: .userDefaults(store))
     var pusherProfileTag: String?
+    
+    /// The device's last boot time as recorded by the NSE.
+    @UserPreference(key: UserDefaultsKeys.lastNotificationBootTime, storageType: .userDefaults(store))
+    var lastNotificationBootTime: TimeInterval?
+    
+    /// The name of sound played when delivering noisy notifications.
+    var notificationSoundName: RemotePreference<UNNotificationSoundName> = .init(.init("message.caf"))
     
     // MARK: - Logging
         
@@ -290,8 +321,6 @@ final class AppSettings {
     let bugReportSentryRustURL: URL? = Secrets.sentryRustDSN.map { URL(string: $0)! } // swiftlint:disable:this force_unwrapping
     /// The name allocated by the bug report server
     private(set) var bugReportApplicationID = "element-x-ios"
-    /// The maximum size of the upload request. Default value is just below CloudFlare's max request size.
-    let bugReportMaxUploadSize = 50 * 1024 * 1024
     
     // MARK: - Analytics
     
@@ -300,7 +329,9 @@ final class AppSettings {
     /// The URL to open with more information about analytics terms. When this is `nil` the "Learn more" link will be hidden.
     private(set) var analyticsTermsURL: URL? = "https://feralisme.fr/cookie-policy"
     /// Whether or not there the app is able ask for user consent to enable analytics or sentry reporting.
-    var canPromptForAnalytics: Bool { analyticsConfiguration != nil || bugReportSentryURL != nil }
+    var canPromptForAnalytics: Bool {
+        analyticsConfiguration != nil || bugReportSentryURL != nil
+    }
     
     private static func makeAnalyticsConfiguration() -> AnalyticsConfiguration? {
         guard let host = Secrets.postHogHost, let apiKey = Secrets.postHogAPIKey else { return nil }
@@ -327,7 +358,7 @@ final class AppSettings {
     
     // MARK: - Room Screen
     
-    @UserPreference(key: UserDefaultsKeys.viewSourceEnabled, defaultValue: isDevelopmentBuild, storageType: .userDefaults(store))
+    @UserPreference(key: UserDefaultsKeys.viewSourceEnabled, defaultValue: appBuildType == .debug, storageType: .userDefaults(store))
     var viewSourceEnabled
     
     @UserPreference(key: UserDefaultsKeys.optimizeMediaUploads, defaultValue: true, storageType: .userDefaults(store))
@@ -359,7 +390,7 @@ final class AppSettings {
     
     // MARK: - Maps
     
-    // maptiler base url
+    /// maptiler base url
     private(set) var mapTilerConfiguration = MapTilerConfiguration(baseURL: "https://api.maptiler.com/maps",
                                                                    apiKey: Secrets.mapLibreAPIKey,
                                                                    lightStyleID: "9bc819c8-e627-474a-a348-ec144fe3d810",
@@ -372,6 +403,17 @@ final class AppSettings {
     
     // MARK: - Feature Flags
     
+    /// Spaces
+    @UserPreference(key: UserDefaultsKeys.spaceSettingsEnabled, defaultValue: true, storageType: .volatile)
+    var spaceSettingsEnabled
+    
+    @UserPreference(key: UserDefaultsKeys.createSpaceEnabled, defaultValue: true, storageType: .volatile)
+    var createSpaceEnabled
+    
+    @UserPreference(key: UserDefaultsKeys.spaceFiltersEnabled, defaultValue: true, storageType: .volatile)
+    var spaceFiltersEnabled
+    
+    /// Others
     @UserPreference(key: UserDefaultsKeys.publicSearchEnabled, defaultValue: false, storageType: .userDefaults(store))
     var publicSearchEnabled
     
@@ -397,9 +439,6 @@ final class AppSettings {
     
     @UserPreference(key: UserDefaultsKeys.focusEventOnNotificationTap, defaultValue: false, storageType: .userDefaults(store))
     var focusEventOnNotificationTap
-    
-    @UserPreference(key: UserDefaultsKeys.spaceSettingsEnabled, defaultValue: false, storageType: .userDefaults(store))
-    var spaceSettingsEnabled
         
     @UserPreference(key: UserDefaultsKeys.linkPreviewsEnabled, defaultValue: false, storageType: .userDefaults(store))
     var linkPreviewsEnabled
@@ -407,7 +446,7 @@ final class AppSettings {
     @UserPreference(key: UserDefaultsKeys.linkNewDeviceEnabled, defaultValue: false, storageType: .userDefaults(store))
     var linkNewDeviceEnabled
 
-    @UserPreference(key: UserDefaultsKeys.developerOptionsEnabled, defaultValue: isDevelopmentBuild, storageType: .userDefaults(store))
+    @UserPreference(key: UserDefaultsKeys.developerOptionsEnabled, defaultValue: appBuildType == .debug, storageType: .userDefaults(store))
     var developerOptionsEnabled
 
     // MARK: - Feral Server Configuration

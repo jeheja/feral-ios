@@ -221,6 +221,7 @@ targets:
     dependencies:
     - target: NSE
     - target: ShareExtension
+    - target: MatrixRustSDKMocks
     - package: MatrixRustSDK
       embed: true
     - package: Compound
@@ -235,7 +236,7 @@ targets:
     - package: KZFileWatchers
     - package: LoremSwiftum
     - package: LRUCache
-    - package: Mapbox
+    - package: MapLibre
     - package: PostHog
     - package: SwiftState
     - package: GZIP
@@ -248,6 +249,8 @@ targets:
     - package: WysiwygComposer
     - package: SwiftOGG
     - package: SwiftSoup
+    - package: SwiftFlow
+      product: Flow
     - package: DSWaveformImage
       product: DSWaveformImageViews
 

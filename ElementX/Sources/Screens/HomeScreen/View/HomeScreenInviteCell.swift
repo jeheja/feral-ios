@@ -92,7 +92,6 @@ struct HomeScreenInviteCell: View {
         }
     }
     
-    @ViewBuilder
     private var textualContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
@@ -152,6 +151,10 @@ struct HomeScreenInviteCell: View {
         }
     }
 }
+
+// MARK: - Previews
+
+import MatrixRustSDKMocks
 
 struct HomeScreenInviteCell_Previews: PreviewProvider, TestablePreview {
     static var previews: some View {

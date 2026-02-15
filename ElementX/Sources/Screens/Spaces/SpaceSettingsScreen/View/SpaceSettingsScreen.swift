@@ -14,7 +14,7 @@ struct SpaceSettingsScreen: View {
     var body: some View {
         Form {
             editSection
-            if context.viewState.canEditRolesOrPermissions {
+            if context.viewState.canSeeSecurityAndPrivacy {
                 securitySection
             }
             peopleSection
@@ -30,6 +30,7 @@ struct SpaceSettingsScreen: View {
     private var editSection: some View {
         Section {
             ListRow(kind: .custom { editRow })
+                .accessibilityIdentifier(A11yIdentifiers.spaceSettingsScreen.editBaseInfo)
         }
     }
     
@@ -145,12 +146,12 @@ struct SpaceSettingsScreen_Previews: PreviewProvider, TestablePreview {
                                                           appSettings: ServiceLocator.shared.settings)
     
     static var previews: some View {
-        NavigationStack {
+        ElementNavigationStack {
             SpaceSettingsScreen(context: ownerViewModel.context)
         }
         .previewDisplayName("Owner")
         
-        NavigationStack {
+        ElementNavigationStack {
             SpaceSettingsScreen(context: userViewModel.context)
         }
         .previewDisplayName("User")

@@ -27,19 +27,19 @@ enum EncryptionAuthenticity: Hashable {
     var message: String {
         switch self {
         case .notGuaranteed:
-            L10n.eventShieldReasonAuthenticityNotGuaranteed
+            L10n.cryptoEventAuthenticityNotGuaranteed
         case .unknownDevice:
-            L10n.eventShieldReasonUnknownDevice
+            L10n.cryptoEventAuthenticityUnknownDevice
         case .unsignedDevice:
-            L10n.eventShieldReasonUnsignedDevice
+            L10n.cryptoEventAuthenticityUnsignedDevice
         case .unverifiedIdentity:
-            L10n.eventShieldReasonUnverifiedIdentity
+            L10n.cryptoEventAuthenticityUnverifiedIdentity
         case .verificationViolation:
-            L10n.eventShieldReasonPreviouslyVerified
+            L10n.cryptoEventAuthenticityPreviouslyVerified
         case .sentInClear:
-            L10n.eventShieldReasonSentInClear
+            L10n.cryptoEventAuthenticitySentInClear
         case .mismatchedSender:
-            L10n.eventShieldMismatchedSender
+            L10n.cryptoEventAuthenticityMismatchedSender
         }
     }
     
@@ -68,16 +68,16 @@ enum EncryptionAuthenticity: Hashable {
 extension EncryptionAuthenticity {
     init?(shieldState: ShieldState) {
         switch shieldState {
-        case .red(let code, _):
+        case .red(let code):
             self.init(shieldStateCode: code, color: .red)
-        case .grey(let code, _):
+        case .grey(let code):
             self.init(shieldStateCode: code, color: .gray)
         case .none:
             return nil
         }
     }
     
-    init(shieldStateCode: ShieldStateCode, color: EncryptionAuthenticity.Color) {
+    init(shieldStateCode: TimelineEventShieldStateCode, color: EncryptionAuthenticity.Color) {
         switch shieldStateCode {
         case .authenticityNotGuaranteed:
             self = .notGuaranteed(color: color)

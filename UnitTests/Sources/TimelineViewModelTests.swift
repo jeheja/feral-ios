@@ -6,9 +6,8 @@
 // Please see LICENSE files in the repository root for full details.
 //
 
-@testable import ElementX
-
 import Combine
+@testable import ElementX
 import MatrixRustSDK
 import XCTest
 
@@ -230,7 +229,7 @@ class TimelineViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.context.viewState.timelineState.focussedEvent)
     }
     
-    func testInitialFocusViewState() async throws {
+    func testInitialFocusViewState() {
         let timelineController = MockTimelineController()
         
         let viewModel = makeViewModel(focussedEventID: "t10", timelineController: timelineController)
@@ -239,7 +238,6 @@ class TimelineViewModelTests: XCTestCase {
     
     // MARK: - Read Receipts
     
-    // swiftlint:disable force_unwrapping
     func testSendReadReceipt() async throws {
         // Given a room with only text items in the timeline
         let items = [TextRoomTimelineItem(eventID: "t1"),
@@ -248,7 +246,7 @@ class TimelineViewModelTests: XCTestCase {
         let (viewModel, _, timelineProxy, _) = readReceiptsConfiguration(with: items)
         
         // When sending a read receipt for the last item.
-        viewModel.context.send(viewAction: .sendReadReceiptIfNeeded(items.last!.id))
+        try viewModel.context.send(viewAction: .sendReadReceiptIfNeeded(XCTUnwrap(items.last?.id)))
         try await Task.sleep(for: .milliseconds(100))
         
         // Then the receipt should be sent.
@@ -266,7 +264,7 @@ class TimelineViewModelTests: XCTestCase {
         let (viewModel, _, timelineProxy, _) = readReceiptsConfiguration(with: items)
         
         // When sending a read receipt for the last item.
-        viewModel.context.send(viewAction: .sendReadReceiptIfNeeded(items.last!.id))
+        try viewModel.context.send(viewAction: .sendReadReceiptIfNeeded(XCTUnwrap(items.last?.id)))
         try await Task.sleep(for: .milliseconds(100))
         
         // Then nothing should be sent.
@@ -281,11 +279,10 @@ class TimelineViewModelTests: XCTestCase {
         let (viewModel, _, _, _) = readReceiptsConfiguration(with: items)
         
         // When sending a read receipt for the last item.
-        viewModel.context.send(viewAction: .sendReadReceiptIfNeeded(items.last!.id))
+        try viewModel.context.send(viewAction: .sendReadReceiptIfNeeded(XCTUnwrap(items.last?.id)))
         try await Task.sleep(for: .milliseconds(100))
     }
     
-    // swiftlint:enable force_unwrapping
     // swiftlint:disable:next large_tuple
     private func readReceiptsConfiguration(with items: [RoomTimelineItemProtocol]) -> (TimelineViewModel,
                                                                                        JoinedRoomProxyMock,
@@ -527,6 +524,36 @@ class TimelineViewModelTests: XCTestCase {
         try await deferred.fulfill()
     }
     
+    // MARK: - Tap Actions
+    
+    func testTapSendInfoEncryptionAuthentictyDisplaysAlert() {
+        // Given a room with an event whose authenticity could not be verified
+        let items = [TextRoomTimelineItem(eventID: "t1", encryptionAuthenticity: .verificationViolation(color: .red))]
+        let timelineController = MockTimelineController()
+        timelineController.timelineItems = items
+        let viewModel = makeViewModel(timelineController: timelineController)
+        
+        XCTAssertNil(viewModel.state.bindings.alertInfo)
+        
+        viewModel.process(viewAction: .itemSendInfoTapped(itemID: items[0].id))
+        
+        XCTAssertEqual(viewModel.state.bindings.alertInfo?.title, "Encrypted by a previously-verified user.")
+    }
+    
+    func testTapSendInfoEncryptionForwarderDisplaysAlert() {
+        // Given a room with an event whose key was forwarded
+        let items = [TextRoomTimelineItem(eventID: "t1", keyForwarder: .test)]
+        let timelineController = MockTimelineController()
+        timelineController.timelineItems = items
+        let viewModel = makeViewModel(timelineController: timelineController)
+        
+        XCTAssertNil(viewModel.state.bindings.alertInfo)
+        
+        viewModel.process(viewAction: .itemSendInfoTapped(itemID: items[0].id))
+        
+        XCTAssertEqual(viewModel.state.bindings.alertInfo?.title, "alice (@alice:matrix.org) shared this message since you were not in the room when it was sent.")
+    }
+    
     // MARK: - Helpers
     
     private func makeViewModel(roomProxy: JoinedRoomProxyProtocol? = nil,
@@ -579,11 +606,43 @@ private extension TextRoomTimelineItem {
     }
 }
 
+private extension TextRoomTimelineItem {
+    init(eventID: String, keyForwarder: TimelineItemKeyForwarder) {
+        self.init(id: .event(uniqueID: .init(UUID().uuidString), eventOrTransactionID: .eventID(eventID)),
+                  timestamp: .mock,
+                  isOutgoing: false,
+                  isEditable: false,
+                  canBeRepliedTo: true,
+                  sender: .init(id: ""),
+                  content: .init(body: "Hello, World!"),
+                  properties: RoomTimelineItemProperties(encryptionForwarder: keyForwarder))
+    }
+}
+
+private extension TextRoomTimelineItem {
+    init(eventID: String, encryptionAuthenticity: EncryptionAuthenticity) {
+        self.init(id: .event(uniqueID: .init(UUID().uuidString), eventOrTransactionID: .eventID(eventID)),
+                  timestamp: .mock,
+                  isOutgoing: false,
+                  isEditable: false,
+                  canBeRepliedTo: true,
+                  sender: .init(id: ""),
+                  content: .init(body: "Hello, World!"),
+                  properties: RoomTimelineItemProperties(encryptionAuthenticity: encryptionAuthenticity))
+    }
+}
+
 private extension TimelineItemSender {
     init(with proxy: RoomMemberProxyMock) {
         self.init(id: proxy.userID,
                   displayName: proxy.displayName ?? "",
                   isDisplayNameAmbiguous: false,
                   avatarURL: proxy.avatarURL)
+    }
+}
+
+private extension TimelineItemKeyForwarder {
+    static var test: TimelineItemKeyForwarder {
+        TimelineItemKeyForwarder(id: "@alice:matrix.org", displayName: "alice")
     }
 }

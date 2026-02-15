@@ -6,9 +6,8 @@
 // Please see LICENSE files in the repository root for full details.
 //
 
-@testable import ElementX
-
 import Combine
+@testable import ElementX
 import MatrixRustSDK
 import QuickLook
 import SwiftUI
@@ -17,7 +16,10 @@ import XCTest
 @MainActor
 class TimelineMediaPreviewViewModelTests: XCTestCase {
     var viewModel: TimelineMediaPreviewViewModel!
-    var context: TimelineMediaPreviewViewModel.Context { viewModel.context }
+    var context: TimelineMediaPreviewViewModel.Context {
+        viewModel.context
+    }
+
     var mediaProvider: MediaProviderMock!
     var photoLibraryManager: PhotoLibraryManagerMock!
     var timelineController: MockTimelineController!
@@ -91,7 +93,7 @@ class TimelineMediaPreviewViewModelTests: XCTestCase {
         XCTAssertEqual(timelineController.paginateBackwardsCallCount, 0)
         
         // When swiping to a "loading more" item and there are more media items to load.
-        timelineController.paginationState = .init(backward: .idle, forward: .timelineEndReached)
+        timelineController.paginationState = .init(backward: .idle, forward: .endReached)
         timelineController.backPaginationResponses.append(RoomTimelineItemFixtures.mediaChunk)
         let failure = deferFailure(viewModel.state.previewControllerDriver, timeout: 1) { $0.isItemLoaded }
         context.send(viewAction: .updateCurrentItem(.loading(.paginatingBackwards)))

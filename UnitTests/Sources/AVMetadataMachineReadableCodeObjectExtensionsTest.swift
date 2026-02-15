@@ -7,9 +7,8 @@
 //
 
 import AVKit
-import XCTest
-
 @testable import ElementX
+import XCTest
 
 final class AVMetadataMachineReadableCodeObjectExtensionsTest: XCTestCase {
     func testDecodeQRCodeVersion8() {
@@ -24,7 +23,7 @@ final class AVMetadataMachineReadableCodeObjectExtensionsTest: XCTestCase {
             return
         }
         
-        guard let resultData = AVMetadataMachineReadableCodeObject.removeQrProtocolData(data, symbolVersion: symbolVersion) else {
+        guard let resultData = try? AVMetadataMachineReadableCodeObject.removeQRProtocolData(data, symbolVersion: symbolVersion) else {
             XCTFail("Could not remove the protocol data")
             return
         }
