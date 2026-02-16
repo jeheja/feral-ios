@@ -260,7 +260,7 @@ class AuthenticationService: AuthenticationServiceProtocol {
             "feralisme.fr",
             "feralism.net",
             "feralism.eu",
-            "feral.chat",
+            "feral.chat"
             // Add more servers as they become available:
             // "feralism.de",
             // "feralism.es",

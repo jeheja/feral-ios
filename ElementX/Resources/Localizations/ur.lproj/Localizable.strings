@@ -1030,7 +1030,7 @@
 "screen_qr_code_login_initial_state_item_3" = "%1$@ منتخب کریں";
 "screen_qr_code_login_initial_state_item_3_action" = "”نیا آلہ مربوط کریں“";
 "screen_qr_code_login_initial_state_item_4" = "اس آلے کے ساتھ کیو آر رمز مسح ضوئی کریں";
-"screen_qr_code_login_initial_state_subtitle" = "Only available if your account provider supports it.";
+"screen_qr_code_login_initial_state_subtitle" = "Scan the QR code with your other device.";
 "screen_qr_code_login_initial_state_title" = "کیو آر رمز حاصل کرنے کے لئے کسی دوسرے آلے پر %1$@ کھولیں";
 "screen_qr_code_login_invalid_scan_state_description" = "دوسرے آلے پر دکھایا گیا کیو آر رمز استعمال کریں۔";
 "screen_qr_code_login_invalid_scan_state_subtitle" = "غلط کیو آر رمز";
@@ -1185,7 +1185,7 @@
 "screen_room_timeline_add_reaction" = "رمزِ تعبیری شامل کریں";
 "screen_room_timeline_beginning_of_room" = "یہ %1$@ کا آغاز ہے";
 "screen_room_timeline_beginning_of_room_no_name" = "یہ اس گفتگو کا آغاز ہے";
-"screen_room_timeline_legacy_call" = "Unsupported call. Ask if the caller can use the new Element X app.";
+"screen_room_timeline_legacy_call" = "Unsupported call. Ask if the caller can use the new Feral app.";
 "screen_room_timeline_less_reactions" = "کم دکھائیں";
 "screen_room_timeline_message_copied" = "پیغام نقل کردہ";
 "screen_room_timeline_no_permission_to_post" = "آپ کو اس کمرے میں پوسٹ کرنے کی اجازت نہیں ہے";

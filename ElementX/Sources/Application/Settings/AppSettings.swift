@@ -227,7 +227,7 @@ final class AppSettings {
 
     /// Any domains that Feral web may be hosted on - used for handling links.
     private(set) var elementWebHosts = ["app.feralisme.fr", "web.feralisme.fr", "feralisme.fr"]
-    /// The domain that account provisioning links will be hosted on - used for handling the links.
+    // The domain that account provisioning links will be hosted on - used for handling the links.
 
     private(set) var accountProvisioningHost = "mobile.feralisme.fr"
 
@@ -235,7 +235,6 @@ final class AppSettings {
     /// **Note:** This property isn't overridable as it in unexpected for forks to come across the error (or to even have a "Pro" app).
     let elementProAppStoreURL: URL = "https://apps.apple.com/app/element-pro-for-work/id6502951615"
 
-    
     @UserPreference(key: UserDefaultsKeys.appAppearance, defaultValue: .system, storageType: .userDefaults(store))
     var appAppearance: AppAppearance
     
@@ -455,11 +454,11 @@ final class AppSettings {
     private static func getFeralAccountProviders() -> [String] {
         // Map of locale identifiers to their preferred servers
         let localeToServer = [
-            "fr": "feralisme.fr",     // French language
-            "FR": "feralisme.fr",     // France country
-            "en": "feralism.net",     // English language (international)
-            "US": "feralism.net",     // United States
-            "GB": "feralism.net",     // United Kingdom
+            "fr": "feralisme.fr", // French language
+            "FR": "feralisme.fr", // France country
+            "en": "feralism.net", // English language (international)
+            "US": "feralism.net", // United States
+            "GB": "feralism.net" // United Kingdom
             // Add more mappings as servers become available:
             // "de": "feralism.de",   // German
             // "DE": "feralism.de",   // Germany
@@ -489,8 +488,8 @@ final class AppSettings {
         
         // List of all available Feral servers
         let allServers = [
-            "feralisme.fr",    // France
-            "feralism.net",    // International
+            "feralisme.fr", // France
+            "feralism.net" // International
             // Add more servers as they become available:
             // "feralism.eu",  // Europe
             // "feralism.de",  // Germany

@@ -1030,7 +1030,7 @@
 "screen_qr_code_login_initial_state_item_3" = "Hautatu %1$@";
 "screen_qr_code_login_initial_state_item_3_action" = "\"Lotu gailu berria\"";
 "screen_qr_code_login_initial_state_item_4" = "Eskaneatu QR kodea gailu honekin";
-"screen_qr_code_login_initial_state_subtitle" = "Only available if your account provider supports it.";
+"screen_qr_code_login_initial_state_subtitle" = "Scan the QR code with your other device.";
 "screen_qr_code_login_initial_state_title" = "Open %1$@ on another device to get the QR code";
 "screen_qr_code_login_invalid_scan_state_description" = "Erabili beste gailuan agertzen den QR kodea.";
 "screen_qr_code_login_invalid_scan_state_subtitle" = "QR kode okerra";
@@ -1185,7 +1185,7 @@
 "screen_room_timeline_add_reaction" = "Gehitu emojia";
 "screen_room_timeline_beginning_of_room" = "Hauxe da %1$@(r)en hasiera";
 "screen_room_timeline_beginning_of_room_no_name" = "Hau da elkarrizketaren hasiera.";
-"screen_room_timeline_legacy_call" = "Deia ez da bateragarria. Galdetu deika ari denari Element X aplikazio berria erabil dezakeen.";
+"screen_room_timeline_legacy_call" = "Deia ez da bateragarria. Galdetu deika ari denari Feral aplikazio berria erabil dezakeen.";
 "screen_room_timeline_less_reactions" = "Erakutsi gutxiago";
 "screen_room_timeline_message_copied" = "Mezua kopiatu da";
 "screen_room_timeline_no_permission_to_post" = "Ez duzu gela honetara mezuak bidaltzeko baimenik";

@@ -1030,7 +1030,7 @@
 "screen_qr_code_login_initial_state_item_3" = "Select %1$@";
 "screen_qr_code_login_initial_state_item_3_action" = "“Link new device”";
 "screen_qr_code_login_initial_state_item_4" = "Scan the QR code with this device";
-"screen_qr_code_login_initial_state_subtitle" = "Only available if your account provider supports it.";
+"screen_qr_code_login_initial_state_subtitle" = "Scan the QR code with your other device.";
 "screen_qr_code_login_initial_state_title" = "Open %1$@ on another device to get the QR code";
 "screen_qr_code_login_invalid_scan_state_description" = "Use the QR code shown on the other device.";
 "screen_qr_code_login_invalid_scan_state_subtitle" = "Wrong QR code";
@@ -1185,7 +1185,7 @@
 "screen_room_timeline_add_reaction" = "Add a reaction";
 "screen_room_timeline_beginning_of_room" = "Tai yra %1$@ pradžia.";
 "screen_room_timeline_beginning_of_room_no_name" = "Tai yra šio pokalbio pradžia.";
-"screen_room_timeline_legacy_call" = "Unsupported call. Ask if the caller can use the new Element X app.";
+"screen_room_timeline_legacy_call" = "Unsupported call. Ask if the caller can use the new Feral app.";
 "screen_room_timeline_less_reactions" = "Show less";
 "screen_room_timeline_message_copied" = "Message copied";
 "screen_room_timeline_no_permission_to_post" = "You do not have permission to post to this room";

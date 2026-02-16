@@ -36,9 +36,9 @@ struct AuthenticationStartScreen: View {
             }
             .frame(maxHeight: .infinity)
             .safeAreaInset(edge: .bottom) {
-                versionText
-                    .font(.compound.bodySM)
-                    .foregroundColor(.compound.textSecondary)
+                // Version hidden but still tappable (7 taps) to report a problem
+                Color.clear
+                    .frame(height: 1)
                     .frame(maxWidth: .infinity)
                     .padding(.bottom)
                     .onTapGesture(count: 7) {
@@ -49,7 +49,16 @@ struct AuthenticationStartScreen: View {
         }
         .navigationBarHidden(true)
         .background {
-            AuthenticationStartScreenBackgroundImage()
+            // Use a fixed dark gradient for the Feral landing page
+            // so the white logo and text are always visible
+            LinearGradient(stops: [
+                .init(color: Color(red: 0.05, green: 0.05, blue: 0.07), location: 0),
+                .init(color: Color(red: 0.02, green: 0.02, blue: 0.03), location: 0.5),
+                .init(color: .black, location: 1)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing)
+                .ignoresSafeArea()
         }
         .introspect(.window, on: .supportedVersions) { window in
             context.send(viewAction: .updateWindow(window))
@@ -59,57 +68,74 @@ struct AuthenticationStartScreen: View {
     var content: some View {
         VStack(spacing: 0) {
             Spacer()
-            
-            if verticalSizeClass == .regular {
-                Spacer()
-                
-                AuthenticationStartLogo(hideBrandChrome: context.viewState.hideBrandChrome)
-            }
-            
             Spacer()
-            
+
+            if verticalSizeClass == .regular {
+                AuthenticationStartLogo(hideBrandChrome: context.viewState.hideBrandChrome)
+                    .padding(.bottom, 32)
+            }
+
             VStack(spacing: 8) {
-                Text("Feral")
-                    .font(.custom("Papyrus", size: 48))
+                Text("FERAL")
+                    .font(.system(size: 44, weight: .black, design: .serif))
+                    .tracking(6)
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                 Text("for feralists")
-                    .font(.compound.bodyLG)
-                    .foregroundColor(.white.opacity(0.7))
+                    .font(.system(size: 13, weight: .regular, design: .serif))
+                    .tracking(4)
+                    .textCase(.uppercase)
+                    .foregroundColor(.white.opacity(0.45))
                     .multilineTextAlignment(.center)
             }
-            .padding()
             .fixedSize(horizontal: false, vertical: true)
-            
+
+            Spacer()
             Spacer()
         }
-        .padding(.bottom)
         .padding(.horizontal, 16)
         .readableFrame()
     }
     
     /// The main action buttons.
     var buttons: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             if context.viewState.showQRCodeLoginButton {
                 Button { context.send(viewAction: .loginWithQR) } label: {
                     Label(L10n.screenOnboardingSignInWithQrCode, icon: \.qrCode)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Color.white.opacity(0.1),
+                                    in: RoundedRectangle(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14)
+                            .stroke(.white.opacity(0.25), lineWidth: 0.5))
                 }
-                .buttonStyle(.compound(.primary))
                 .accessibilityIdentifier(A11yIdentifiers.authenticationStartScreen.signInWithQr)
             }
-            
+
             Button { context.send(viewAction: .login) } label: {
                 Text(context.viewState.loginButtonTitle)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(Color.white.opacity(0.1),
+                                in: RoundedRectangle(cornerRadius: 14))
+                    .overlay(RoundedRectangle(cornerRadius: 14)
+                        .stroke(.white.opacity(0.25), lineWidth: 0.5))
             }
-            .buttonStyle(.compound(.primary))
             .accessibilityIdentifier(A11yIdentifiers.authenticationStartScreen.signIn)
-            
+
             if context.viewState.showCreateAccountButton {
                 Button { context.send(viewAction: .register) } label: {
                     Text(L10n.screenCreateAccountTitle)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(.white.opacity(0.6))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
                 }
-                .buttonStyle(.compound(.tertiary))
             }
         }
         .padding(.horizontal, verticalSizeClass == .compact ? 128 : 24)

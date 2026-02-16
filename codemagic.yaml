@@ -24,7 +24,7 @@ workflows:
         APP_NAME: "Feral"
         APP_DISPLAY_NAME: "Feral"
         XCODE_PROJECT: "ElementX.xcodeproj"
-        XCODE_SCHEME: "ElementX"
+        XCODE_SCHEME: "Feral"
       xcode: 26.1
       cocoapods: default
       node: latest
@@ -147,7 +147,7 @@ workflows:
         APP_NAME: "Feral"
         APP_DISPLAY_NAME: "Feral"
         XCODE_PROJECT: "ElementX.xcodeproj"
-        XCODE_SCHEME: "ElementX"
+        XCODE_SCHEME: "Feral"
       xcode: 26.1  # Match the version from your CI
       cocoapods: default
       node: latest
@@ -316,7 +316,7 @@ workflows:
   #       APP_NAME: "Feral"
   #       APP_DISPLAY_NAME: "Feral"
   #       XCODE_PROJECT: "ElementX.xcodeproj"
-  #       XCODE_SCHEME: "ElementX"
+  #       XCODE_SCHEME: "Feral"
   #     xcode: 16.2
   #   triggering:
   #     events:

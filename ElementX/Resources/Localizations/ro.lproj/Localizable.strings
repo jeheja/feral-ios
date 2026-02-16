@@ -1030,7 +1030,7 @@
 "screen_qr_code_login_initial_state_item_3" = "Selectați %1$@";
 "screen_qr_code_login_initial_state_item_3_action" = "„Conectați un dispozitiv nou”";
 "screen_qr_code_login_initial_state_item_4" = "Scanați codul QR cu acest dispozitiv";
-"screen_qr_code_login_initial_state_subtitle" = "Disponibil numai dacă furnizorul dumneavoastră de cont îl acceptă.";
+"screen_qr_code_login_initial_state_subtitle" = "Scan the QR code with your other device.";
 "screen_qr_code_login_initial_state_title" = "Deschideți %1$@ pe un alt dispozitiv pentru a obține codul QR";
 "screen_qr_code_login_invalid_scan_state_description" = "Utilizați codul QR afișat pe celălalt dispozitiv.";
 "screen_qr_code_login_invalid_scan_state_subtitle" = "Cod QR greșit";
@@ -1185,7 +1185,7 @@
 "screen_room_timeline_add_reaction" = "Adăugați emoji";
 "screen_room_timeline_beginning_of_room" = "Acesta este începutul conversației %1$@.";
 "screen_room_timeline_beginning_of_room_no_name" = "Acesta este începutul acestei conversații.";
-"screen_room_timeline_legacy_call" = "Apel neacceptat. Întrebați apelantul dacă poate utiliza noua aplicație Element X.";
+"screen_room_timeline_legacy_call" = "Apel neacceptat. Întrebați apelantul dacă poate utiliza noua aplicație Feral.";
 "screen_room_timeline_less_reactions" = "Afișați mai puțin";
 "screen_room_timeline_message_copied" = "Mesaj copiat";
 "screen_room_timeline_no_permission_to_post" = "Nu aveți permisiunea de a posta în această cameră";

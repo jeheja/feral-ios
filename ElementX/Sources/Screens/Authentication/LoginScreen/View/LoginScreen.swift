@@ -22,8 +22,16 @@ struct LoginScreen: View {
             VStack(spacing: 0) {
                 header
                     .padding(.top, UIConstants.titleTopPaddingToNavigationBar)
-                    .padding(.bottom, 32)
-                
+                    .padding(.bottom, 24)
+
+                Text("Access is reserved for members of the Feralism community.")
+                    .font(.system(size: 13, weight: .regular, design: .serif))
+                    .tracking(1)
+                    .foregroundColor(.compound.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 24)
+
                 switch context.viewState.loginMode {
                 case .password:
                     loginForm

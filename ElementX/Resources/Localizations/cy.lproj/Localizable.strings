@@ -1030,7 +1030,7 @@
 "screen_qr_code_login_initial_state_item_3" = "Dewiswch %1$@";
 "screen_qr_code_login_initial_state_item_3_action" = "“Cysylltu dyfais newydd”";
 "screen_qr_code_login_initial_state_item_4" = "Sganiwch y cod QR gyda'r ddyfais hon";
-"screen_qr_code_login_initial_state_subtitle" = "Dim ond ar gael os yw darparwr eich cyfrif yn ei gefnogi.";
+"screen_qr_code_login_initial_state_subtitle" = "Scan the QR code with your other device.";
 "screen_qr_code_login_initial_state_title" = "Agorwch %1$@ ar ddyfais arall i gael y cod QR";
 "screen_qr_code_login_invalid_scan_state_description" = "Defnyddiwch y cod QR sy'n cael ei ddangos ar y ddyfais arall.";
 "screen_qr_code_login_invalid_scan_state_subtitle" = "Cod QR anghywir";
@@ -1185,7 +1185,7 @@
 "screen_room_timeline_add_reaction" = "Ychwanegu emoji";
 "screen_room_timeline_beginning_of_room" = "Dyma ddechrau %1$@.";
 "screen_room_timeline_beginning_of_room_no_name" = "Dyma ddechrau'r sgwrs hon.";
-"screen_room_timeline_legacy_call" = "Galwad heb ei chefnogi. Gofynnwch a all y galwr ddefnyddio'r ap Element X newydd.";
+"screen_room_timeline_legacy_call" = "Galwad heb ei chefnogi. Gofynnwch a all y galwr ddefnyddio'r ap Feral newydd.";
 "screen_room_timeline_less_reactions" = "Dangos llai";
 "screen_room_timeline_message_copied" = "Neges wedi'i chopïo";
 "screen_room_timeline_no_permission_to_post" = "Does gennych chi ddim caniatâd i bostio i'r ystafell hon";

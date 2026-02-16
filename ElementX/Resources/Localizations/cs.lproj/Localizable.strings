@@ -1030,7 +1030,7 @@
 "screen_qr_code_login_initial_state_item_3" = "Vybrat %1$@";
 "screen_qr_code_login_initial_state_item_3_action" = "\"Připojit nové zařízení\"";
 "screen_qr_code_login_initial_state_item_4" = "Naskenujte QR kód pomocí tohoto zařízení";
-"screen_qr_code_login_initial_state_subtitle" = "Dostupné pouze v případě, že to váš poskytovatel účtu podporuje.";
+"screen_qr_code_login_initial_state_subtitle" = "Scan the QR code with your other device.";
 "screen_qr_code_login_initial_state_title" = "Otevřete %1$@ na jiném zařízení pro získání QR kódu";
 "screen_qr_code_login_invalid_scan_state_description" = "Použijte QR kód zobrazený na druhém zařízení.";
 "screen_qr_code_login_invalid_scan_state_subtitle" = "Špatný QR kód";
@@ -1185,7 +1185,7 @@
 "screen_room_timeline_add_reaction" = "Přidat emoji";
 "screen_room_timeline_beginning_of_room" = "Toto je začátek %1$@.";
 "screen_room_timeline_beginning_of_room_no_name" = "Toto je začátek této konverzace.";
-"screen_room_timeline_legacy_call" = "Nepodporované volání. Zeptejte se, zda volající může používat novou aplikaci Element X.";
+"screen_room_timeline_legacy_call" = "Nepodporované volání. Zeptejte se, zda volající může používat novou aplikaci Feral.";
 "screen_room_timeline_less_reactions" = "Zobrazit méně";
 "screen_room_timeline_message_copied" = "Zpráva zkopírována";
 "screen_room_timeline_no_permission_to_post" = "Nemáte oprávnění zveřejňovat příspěvky v této místnosti";

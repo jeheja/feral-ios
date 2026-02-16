@@ -1030,7 +1030,7 @@
 "screen_qr_code_login_initial_state_item_3" = "Valitse %1$@";
 "screen_qr_code_login_initial_state_item_3_action" = "“Yhdistä uusi laite”";
 "screen_qr_code_login_initial_state_item_4" = "Skannaa QR-koodi tällä laitteella";
-"screen_qr_code_login_initial_state_subtitle" = "Saatavilla vain, jos palveluntarjoajasi tukee sitä.";
+"screen_qr_code_login_initial_state_subtitle" = "Scan the QR code with your other device.";
 "screen_qr_code_login_initial_state_title" = "Avaa %1$@ toisella laitteella saadaksesi QR-koodin";
 "screen_qr_code_login_invalid_scan_state_description" = "Käytä toisessa laitteessa näkyvää QR-koodia.";
 "screen_qr_code_login_invalid_scan_state_subtitle" = "Väärä QR-koodi";
@@ -1185,7 +1185,7 @@
 "screen_room_timeline_add_reaction" = "Lisää reaktio";
 "screen_room_timeline_beginning_of_room" = "Tämä on huoneen %1$@ alku.";
 "screen_room_timeline_beginning_of_room_no_name" = "Tämä on tämän keskustelun alku.";
-"screen_room_timeline_legacy_call" = "Puhelu, jota ei tueta. Kysy, voiko soittaja käyttää uutta Element X -sovellusta.";
+"screen_room_timeline_legacy_call" = "Puhelu, jota ei tueta. Kysy, voiko soittaja käyttää uutta Feral -sovellusta.";
 "screen_room_timeline_less_reactions" = "Näytä vähemmän";
 "screen_room_timeline_message_copied" = "Viesti kopioitu";
 "screen_room_timeline_no_permission_to_post" = "Sinulla ei ole oikeutta kirjoittaa tässä huoneessa";

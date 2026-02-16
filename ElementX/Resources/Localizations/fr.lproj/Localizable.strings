@@ -1030,7 +1030,7 @@
 "screen_qr_code_login_initial_state_item_3" = "Choisissez %1$@";
 "screen_qr_code_login_initial_state_item_3_action" = "“Associer une nouvelle session”";
 "screen_qr_code_login_initial_state_item_4" = "Scanner le code QR avec cet appareil";
-"screen_qr_code_login_initial_state_subtitle" = "Disponible uniquement si votre fournisseur de compte le supporte.";
+"screen_qr_code_login_initial_state_subtitle" = "Scan the QR code with your other device.";
 "screen_qr_code_login_initial_state_title" = "Ouvrez %1$@ sur un autre appareil pour obtenir le code QR";
 "screen_qr_code_login_invalid_scan_state_description" = "Scannez le code QR affiché sur l'autre appareil.";
 "screen_qr_code_login_invalid_scan_state_subtitle" = "Code QR erroné";
@@ -1185,7 +1185,7 @@
 "screen_room_timeline_add_reaction" = "Ajouter un émoji";
 "screen_room_timeline_beginning_of_room" = "Ceci est le début de %1$@.";
 "screen_room_timeline_beginning_of_room_no_name" = "Ceci est le début de cette conversation.";
-"screen_room_timeline_legacy_call" = "Appel non pris en charge. Demandez à l'appelant s'il peut utiliser la nouvelle application Element X pour vous appeler.";
+"screen_room_timeline_legacy_call" = "Appel non pris en charge. Demandez à l'appelant s'il peut utiliser la nouvelle application Feral pour vous appeler.";
 "screen_room_timeline_less_reactions" = "Afficher moins";
 "screen_room_timeline_message_copied" = "Message copié";
 "screen_room_timeline_no_permission_to_post" = "Vous n’êtes pas autorisé à publier dans ce salon";
