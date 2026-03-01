@@ -24,7 +24,7 @@ struct LoginScreen: View {
                     .padding(.top, UIConstants.titleTopPaddingToNavigationBar)
                     .padding(.bottom, 24)
 
-                Text("Access is reserved for members of the Feralism community.")
+                Text("Access is reserved for members of the Feralist community")
                     .font(.system(size: 13, weight: .regular, design: .serif))
                     .tracking(1)
                     .foregroundColor(.compound.textSecondary)
