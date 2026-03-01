@@ -1,129 +1,110 @@
-# Feral iOS Git Workflow
+# Feral iOS — Git Workflow & Upstream Sync Guide
 
-This document describes how to maintain the Feral fork while incorporating upstream Element X updates.
+This document describes how to maintain the Feral iOS fork while incorporating upstream Element X updates.
+
+## Repository Setup
+
+```bash
+# Clone the fork
+git clone https://github.com/jeheja/feral-ios.git
+cd feral-ios
+
+# Add upstream remote (Element X iOS)
+git remote add upstream https://github.com/element-hq/element-x-ios.git
+
+# Verify remotes
+git remote -v
+# origin    https://github.com/jeheja/feral-ios.git (fetch/push)
+# upstream  https://github.com/element-hq/element-x-ios.git (fetch/push)
+```
 
 ## Branch Structure
 
-- `feral-main` - Stable Feral releases based on Element X stable releases
-- `feral-develop` - Active Feral development with customizations
-- `develop` - Tracks upstream Element X develop branch (DO NOT MODIFY)
-- `main` - Tracks upstream Element X main branch (DO NOT MODIFY)
+- `feral-develop` — Active Feral development with customizations (main working branch)
+- `feral-main` — Stable Feral releases
+- `develop` — Tracks upstream Element X develop branch (DO NOT MODIFY)
+- `main` — Tracks upstream Element X main branch (DO NOT MODIFY)
 
-## Initial Setup (Already Done)
+## Syncing with Upstream
 
-```bash
-# Add upstream remote
-git remote add upstream https://github.com/element-hq/element-x-ios.git
+We use **merge** (not rebase) to incorporate upstream changes. This preserves our custom commits as distinct history.
 
-# Fetch upstream
-git fetch upstream --tags
-```
-
-## Creating Feral Branches
+### Step-by-step update process
 
 ```bash
-# Create feral-develop from current state
-git checkout -b feral-develop
+# 1. Make sure you're on feral-develop
+git checkout feral-develop
 
-# Create feral-main for stable releases
-git checkout -b feral-main
-git push origin feral-main
+# 2. Fetch latest upstream
+git fetch upstream
+
+# 3. Merge upstream develop into feral-develop
+git merge upstream/develop
+
+# 4. Resolve any conflicts (see Conflict Resolution below)
+
+# 5. Push
 git push origin feral-develop
 ```
 
-## Feral Customizations
+### For stable releases
 
-All Feral-specific changes should be made in separate, well-documented commits:
-
-1. **App Branding**
-   - Update app name to "Feral"
-   - Change bundle identifier
-   - Update icons and assets
-
-2. **Configuration**
-   - Codemagic CI/CD setup
-   - Custom server configurations
-   - Feature flags
-
-3. **Custom Features**
-   - Any Feral-specific functionality
-
-## Updating from Upstream
-
-### 1. Update tracking branches
 ```bash
-# Update upstream tracking
-git fetch upstream
-
-# Update local tracking branches
-git checkout develop
-git merge upstream/develop --ff-only
-
-git checkout main  
-git merge upstream/main --ff-only
-```
-
-### 2. Merge upstream changes into Feral
-```bash
-# Merge latest stable into feral-main
 git checkout feral-main
 git merge upstream/main --no-ff -m "Merge Element X stable release"
-
-# Or merge develop changes into feral-develop
-git checkout feral-develop
-git merge upstream/develop --no-ff -m "Merge Element X develop updates"
+# Resolve conflicts, test
+git tag feral-v1.x.x
+git push origin feral-main --tags
 ```
 
-### 3. Resolve conflicts
-When conflicts occur, prioritize Feral customizations:
-- Keep Feral branding (app name, bundle ID)
-- Keep Feral-specific features
-- Accept upstream bug fixes and improvements
+## Conflict Resolution Strategy
 
-### 4. Test thoroughly
-After merging:
-1. Run all tests
-2. Build the app
-3. Test Feral-specific features
-4. Verify branding is intact
+When conflicts occur, follow these rules:
 
-## Release Process
+| File type | Resolution |
+|-----------|-----------|
+| **Feral-branded files** (custom SwiftUI views, Feral assets) | **Always keep ours** — these are 100% custom |
+| **OnboardingScreen / WelcomeScreen** | Keep Feral UI (dark gradient, frosted glass, "FERAL" title). Accept new upstream features and integrate with Feral styling |
+| **Login views** | Keep members-only notice. Accept upstream form/API changes |
+| **Localizable.strings** (all `.lproj/`) | Keep Feral translations for welcome/title/subtitle. Accept new upstream strings |
+| **Config / plist files** | Keep Feral app name, bundle ID, server config |
+| **Everything else** | **Take upstream** — bug fixes, new features, dependency updates |
 
-1. When Element X releases a new stable version:
-   ```bash
-   git checkout feral-main
-   git merge upstream/main --no-ff
-   # Resolve conflicts, test
-   git tag feral-v1.0.0
-   git push origin feral-main --tags
-   ```
+## What's Customized
 
-2. Regular development:
-   ```bash
-   git checkout feral-develop
-   # Make changes
-   git commit -m "feat: Add Feral-specific feature"
-   git push origin feral-develop
-   ```
+### 1. Onboarding Screen (matches Android exactly)
+- **Dark gradient background** — near-black gradient
+- **White Feral logo** — no container, tinted white
+- **"FERAL" title** — large, letter-spaced, white
+- **"FOR FERALISTS" subtitle** — smaller, faded white
+- **Frosted glass buttons** — semi-transparent white with thin border
+
+### 2. Login Screen
+- **Members-only notice** — "Access is reserved for members of the Feralism community."
+
+### 3. App Identity
+- App name: "Feral"
+- Bundle ID: Feral-specific
+- Default homeserver: `feralisme.fr`
+- External signup: `https://feralisme.fr/inscription/`
+
+### 4. Localization
+- 38 languages updated with Feral branding
+- Welcome title/subtitle in all languages
 
 ## Best Practices
 
-1. **Keep customizations isolated**
-   - Use clear commit messages prefixed with `feral:`
-   - Document why each change was made
-   - Keep changes minimal and targeted
-
-2. **Regular syncing**
-   - Sync with upstream weekly during active development
-   - Always sync before starting new features
-
-3. **Conflict resolution**
-   - Document conflict resolutions in commit messages
-   - Create scripts to automate common conflicts (e.g., app name)
-
-4. **Testing**
-   - Maintain Feral-specific tests
-   - Run full test suite after each merge
+1. **Keep customizations isolated** — use clear commit messages prefixed with `feral:`
+2. **Regular syncing** — sync with upstream at least monthly
+3. **Document conflict resolutions** — note what was kept/changed in merge commit messages
+4. **Test after every merge**:
+   - [ ] Onboarding screen shows dark gradient + white logo
+   - [ ] "FERAL" title and "FOR FERALISTS" subtitle visible
+   - [ ] Frosted glass buttons render correctly
+   - [ ] Login shows members-only notice
+   - [ ] App name shows "Feral" throughout
+   - [ ] No Element branding visible
+   - [ ] Sign-in flow completes successfully
 
 ## Emergency Rollback
 
@@ -134,9 +115,9 @@ git reset --hard HEAD~1  # Undo the merge
 git push origin feral-develop --force-with-lease
 ```
 
-## Automation Ideas
+## Notes
 
-Consider creating scripts for:
-- Automated branding updates after merge
-- Conflict resolution for known patterns
-- CI/CD integration for merge validation
+- iOS and Android should always match visually — check `feral-android` repo for reference
+- All customizations are direct commits (no patch system)
+- The comprehensive rebranding was done in the `claude/determined-banzai` branch, merged into `feral-develop`
+- Codemagic CI/CD may be set up for automated builds
